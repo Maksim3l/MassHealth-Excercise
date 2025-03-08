@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, Link, TouchableOpacity, Alert } from 'react-native';
 import { EvilIcons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
 const LoginForm = () => {
     const [email, setEmail] = useState('');
@@ -8,7 +9,14 @@ const LoginForm = () => {
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
-        
+        setLoading(true)
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        })
+    
+        if (error) Alert.alert(error.message)
+        setLoading(false)
     }
     return (
         <View style={styles.login}>
