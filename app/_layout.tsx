@@ -1,12 +1,16 @@
+
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import "./global.css"
 import { Stack, Tabs, Link } from 'expo-router';
+import ".././global.css"
 
 
-
-export default function App() {
+export default function Layout() {
   return (
-    <Text>Hello</Text>
+    <View style={styles.container}>
+      <Text>Hello from Layout</Text>
+      
+    </View>
   );
 }
 
