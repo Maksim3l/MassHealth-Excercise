@@ -1,8 +1,13 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
 import React from 'react'
 
+interface GoogleProps {
+  onPress: () => void;
+  text: string;
+}
+
 // Change to PascalCase and accept onPress as a prop
-export default function GoogleButton({ onPress }) {
+export default function GoogleButton({ onPress, text }: GoogleProps) {
   return (
     <View style={styles.container}>
       <TouchableOpacity 
@@ -15,7 +20,7 @@ export default function GoogleButton({ onPress }) {
 
         </Image>
         <Text style={styles.text}>
-          Sign in with Google
+          {text}
         </Text>
       </TouchableOpacity>
 
@@ -33,7 +38,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         paddingVertical: 12,
         paddingHorizontal: 24,
-        borderRadius: 20,
+        borderRadius: 8,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center'
