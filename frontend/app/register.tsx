@@ -11,7 +11,13 @@ const Register = () => {
     const [name, setName] = useState('')
     const [lastName, setLastName] = useState('')
     const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [passwordRepeat, setPasswordRepeat] = useState('')
+
+    const OnRegisterPressed = () => {
+      router.push('/tags')
+    }
 
   return (
     <View style={styles.container}>
@@ -32,27 +38,35 @@ const Register = () => {
             <View style={{flex: 1, height: 1, backgroundColor: 'black', margin: 10}} />
           </View>
           <Input
-          placeholder='Name'
+          placeholder='Full name'
           value={name}
           onChangeText={setName}
            />
            <Input
-          placeholder='Last Name'
-          value={lastName}
-          onChangeText={setLastName}
+          placeholder='Email'
+          value={email}
+          onChangeText={setEmail}
            />
         <Input
           placeholder='Username'
           value={username}
           onChangeText={setUsername}
+          secureTextEntry={true}
            />
         <Input
           placeholder='Passsword'
           value={password}
           onChangeText={setPassword}
+          secureTextEntry={true}
+           />
+        <Input
+          placeholder='Passsword repeat'
+          value={passwordRepeat}
+          onChangeText={setPasswordRepeat}
+          secureTextEntry={true}
            />
         <DefButton 
-            onPress={() => console.log("Button pressed")}
+            onPress={OnRegisterPressed}
             text="Register"
             />
         <View style={styles.registerContainer}>
@@ -85,7 +99,6 @@ const styles = StyleSheet.create({
     container2: {
         marginTop: '20%',
         marginBottom: '20%',
-        
         paddingHorizontal: 20
     },
     registerContainer: {

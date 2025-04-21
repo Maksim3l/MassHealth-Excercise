@@ -1,3 +1,6 @@
+
+
+
 import { View, Text, StyleSheet, Button, TouchableOpacity } from 'react-native'
 import { router, Router } from 'expo-router'
 import React, { useState } from 'react'
@@ -41,10 +44,11 @@ const login = () => {
           placeholder='Password'
           value={password}
           onChangeText={setPassword}
+          secureTextEntry={true}
            >
         </Input>
         <DefButton
-            onPress={() => console.log("Button pressed")}
+            onPress={() => router.push('/(tabs)/tags')}
             text="Log in!"  />
         <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Not registered yet!? </Text>

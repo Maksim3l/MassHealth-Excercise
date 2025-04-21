@@ -1,56 +1,60 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
-import React from 'react'
 
-interface GoogleProps {
+
+
+import { View, Text, StyleSheet, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
+import React from 'react';
+
+interface GoogleButtonProps {
   onPress: () => void;
   text: string;
+  icon?: ImageSourcePropType; // Make icon optional and accept custom image source
 }
 
-// Change to PascalCase and accept onPress as a prop
-export default function GoogleButton({ onPress, text }: GoogleProps) {
+export default function GoogleButton({ 
+  onPress, 
+  text, 
+  icon = require('../assets/googlelogo.png') // Default to Google logo
+}: GoogleButtonProps) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.button}
         onPress={onPress}
       >
-        <Image source={require('../assets/googlelogo.png')}
-        style={styles.icon}
-        >
-
-        </Image>
+        <Image 
+          source={icon}
+          style={styles.icon}
+        />
         <Text style={styles.text}>
           {text}
         </Text>
       </TouchableOpacity>
-
-      
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        marginTop: 15
-    },
-    button: {
-        height: 60,
-        backgroundColor: 'white',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    text: {
-        color: 'black',
-        fontSize: 24,
-        fontWeight: '600'
-    },
-    icon: {
-        width: 24,
-        height: 24,
-        marginRight: 12,
-    }
-})
+  container: {
+    marginTop: 15
+  },
+  button: {
+    height: 60,
+    backgroundColor: 'white',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  text: {
+    color: 'black',
+    fontSize: 24,
+    fontWeight: '600'
+  },
+  icon: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
+  }
+});
