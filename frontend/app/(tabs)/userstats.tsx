@@ -25,7 +25,7 @@ const UserStats = () => {
             </View>
             <View style={styles.description}>
                 <Text style={styles.subtext}>
-                    Tell us a bit more about yourself so we can help you crush your fitness goals
+                    Let us help u with fitness goals and nutrition.
                 </Text>
             </View>
             <View style={styles.questions}>
@@ -116,9 +116,9 @@ const styles = StyleSheet.create({
         flex: 1
     },
     title: {
-        marginTop: 40,
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
+        marginTop: 20,
     },
     text: {
         fontWeight: '600',
@@ -126,7 +126,10 @@ const styles = StyleSheet.create({
 
     },
     description: {
-        margin: 20
+        marginVertical: 15,
+        marginHorizontal: 20,
+        justifyContent: 'center',
+        alignItems: 'center',   
     },
     subtext: {
         fontWeight: '500',
@@ -144,10 +147,9 @@ const styles = StyleSheet.create({
     buttonRow: {
         flexWrap: 'wrap',
         flexDirection: 'row',
-        margin: 10
+        marginTop: 10
     },
     continueButton: {
-        marginTop: 5,
         marginHorizontal: 20,
         
     },
