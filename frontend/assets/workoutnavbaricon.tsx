@@ -8,9 +8,11 @@ import Svg, {
   ClipPath,
 } from "react-native-svg"
 
-const WorkoutIcon = (props: SvgProps) => (
-  <Svg viewBox="0 0 32 32" width={24} height={24} fill="none" {...props}>
-    <G stroke="#A4A4A8" strokeWidth={2.5} clipPath="url(#a)">
+const WorkoutIcon = (props: SvgProps) => {
+  const { color = "#A4A4A8", ...rest } = props;
+  return(
+  <Svg viewBox="0 0 32 32" width={24} height={24} fill="none" stroke={color} {...props}>
+    <G stroke={color} strokeWidth={2.5} clipPath="url(#a)">
       <Path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -30,5 +32,5 @@ const WorkoutIcon = (props: SvgProps) => (
     </Defs>
   </Svg>
 )
-
+}
 export default WorkoutIcon

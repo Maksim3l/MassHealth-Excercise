@@ -20,6 +20,7 @@ const LoggedLayout = () => {
             options={{
                 title: "Home",
                 headerShown: false,
+                tabBarActiveTintColor: "#6E49EB",
                 tabBarIcon: ({ color }) => (
                 <HomeIcon width={24} height={24} color={color} />
                 ),
@@ -29,6 +30,7 @@ const LoggedLayout = () => {
             name="routines"
             options={{
             title: "Routines",
+            tabBarActiveTintColor: "#6E49EB",
             headerShown: false,
             tabBarIcon: ({ color }) => (
                 <RoutinesIcon width={24} height={24} color={color} />
@@ -39,6 +41,7 @@ const LoggedLayout = () => {
             name="workout"
             options={{
             title: "Workout",
+            tabBarActiveTintColor: "#6E49EB",
             headerShown: false,
             tabBarIcon: ({ color }) => (
                 <Workout width={24} height={24} color={color} />
@@ -49,6 +52,7 @@ const LoggedLayout = () => {
             name="activity"
             options={{
             title: "Activity",
+            tabBarActiveTintColor: "#6E49EB",
             headerShown: false,
             tabBarIcon: ({ color }) => (
                 <Activity width={24} height={24} color={color} />
@@ -58,11 +62,15 @@ const LoggedLayout = () => {
             name="profile"
             options={{
             title: "Profile",
+            tabBarActiveTintColor: "#6E49EB",
             headerShown: false,
             tabBarIcon: ({ color }) => (
                 <Profile width={24} height={24} color={color} />
             ),
             }} />
+
+            
+            
       
     </Tabs>
     
