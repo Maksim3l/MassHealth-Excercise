@@ -3,6 +3,13 @@ import { View, StyleSheet, Text, TouchableOpacity, Dimensions } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LeafletView } from 'react-native-leaflet-view';
+import { ScrollView } from 'react-native';
+import RoutinesIcon from '../../../assets/routinesnavbaricon';
+import SectionTitle from '../../../components/sectiontitle';
+import CreateRoutineButton from '../../../components/createRoutineButton';
+import Routinebutton from '../../../components/routinebutton';
+import RoutinePlaceholder from '../../../components/routinePlaceholder';
+
 
 const Routines: React.FC = () => {
   const router = useRouter();
@@ -24,6 +31,11 @@ const Routines: React.FC = () => {
   
   return (
     <SafeAreaView style={styles.container}>
+      <ScrollView>
+        <View style={styles.sectionTitle}>
+          <RoutinesIcon color={"#6E49EB"} fill={"white"} ></RoutinesIcon>
+          <Text style={styles.sectionTitleText}>Routines</Text>
+        </View>
       <TouchableOpacity 
         style={styles.mapPreviewContainer}
         onPress={navigateToMap}
@@ -65,9 +77,40 @@ const Routines: React.FC = () => {
         </View>
       </TouchableOpacity>
       
-      <View style={styles.contentArea}>
-        <Text style={styles.contentText}>Your content goes here</Text>
-      </View>
+        <SectionTitle textOne='Your' textTwo='Routines' />
+        <View style={styles.buttonGroup}>
+          <ScrollView horizontal={true}>
+            <CreateRoutineButton />
+            <Routinebutton routineName='Leg day' />
+            <Routinebutton routineName='Chest day' />
+
+            <RoutinePlaceholder />
+          </ScrollView>
+
+        </View>
+
+        <SectionTitle textOne='Popular' textTwo='Routines' />
+        <View style={styles.buttonGroup}>
+          <ScrollView horizontal={true}>
+            <RoutinePlaceholder />
+            <RoutinePlaceholder />
+            <RoutinePlaceholder />
+          </ScrollView>
+
+        </View> 
+        <SectionTitle textOne='Recommended' textTwo='Routines' />
+        <View style={styles.buttonGroup}>
+          <ScrollView horizontal={true}>
+            <RoutinePlaceholder />
+            <RoutinePlaceholder />
+            <RoutinePlaceholder />
+          </ScrollView>
+
+        </View>
+
+
+      </ScrollView>
+     
     </SafeAreaView>
   );
 };
@@ -76,6 +119,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
+  },
+  sectionTitle: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    alignItems: 'center',
+    fontWeight: '700'
+
+  },
+  sectionTitleText: {
+    fontWeight: 700,
+    fontSize: 32,
+    color: "#6E49EB",
+    margin: 10
+
+  },
+  title: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    margin: 20
   },
   mapPreviewContainer: {
     height: 120,
@@ -89,7 +152,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 3,
+    shadowRadius: 3
   },
   mapWrapper: {
     width: '100%',
@@ -118,6 +181,9 @@ const styles = StyleSheet.create({
   },
   contentText: {
     fontSize: 16,
+  },
+  buttonGroup: {
+    flexDirection: 'row'
   }
 });
 
