@@ -170,17 +170,41 @@ echo "To view logs:"
 echo "- Frontend: docker compose logs -f -f expo-app"
 echo "- Supabase: cd backend/supabase-project && docker compose logs -f"
 
-#TODO: Make reset for just db and just frontend & both
-
 while true; do
-echo ""
-  read -p "Do you want to quit or continue (q to quit, any key to continue)? " quit_choice
-  if [[ "$quit_choice" == "q" ]]; then
+  echo ""
+  echo "Do you want to quit or continue"
+  echo "- q - quit,"
+  echo "- r - restart,"
+  echo "- rf - restart frontend,"
+  echo "- rb - restart backend,"
+  read -p "or press any key to continue: " option
+  if [[ "$option" == "q" ]]; then
     echo "Shutting down both frontend and backend..."
     cd frontend && docker compose down
     cd ..
-    cd backend/supabase-project && docker compose down && cd ../../
+    cd backend/supabase-project && docker compose down 
+    cd ../../
     echo "Shutdown complete. Exiting..."
     break
+  elif [[ "$option" == "rb" ]]; then
+    echo "Restarting backend..."
+    cd backend/supabase-project && docker compose down && docker compose up -d 
+    cd ../../
+    echo "Backend restarted."
+  elif [[ "$option" == "rf" ]]; then
+    echo "Restarting frontend..."
+    cd frontend && docker compose down && docker compose up -d 
+    cd ../
+    echo "Frontend restarted."
+  elif [[ "$option" == "r" ]]; then
+    echo "Restarting both frontend and backend..."
+
+    cd frontend && docker compose down && docker compose up -d && cd ../
+    echo "Frontend restarted."
+
+    cd backend/supabase-project && docker compose down && docker compose up -d && cd ../../
+    echo "Backend restarted."
+  else
+    echo "Continuing development..."
   fi
 done
