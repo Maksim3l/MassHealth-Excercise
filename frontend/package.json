@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@legendapp/list": "^1.0.3",
     "adb": "^0.2.0",
     "expo": "~52.0.46",
     "expo-constants": "~17.0.8",
