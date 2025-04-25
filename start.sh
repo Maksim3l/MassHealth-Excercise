@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# Function to get IP address on Windows
 get_ip_windows() {
-  ipv4_address=$(ipconfig | grep -A 5 "Wireless LAN adapter Wi-Fi" | grep "IPv4 Address" | awk -F: '{print $2}' | tr -d ' ')
+  ipv4_address=$(ipconfig | grep -A 5 "Wireless LAN adapter" | grep "IPv4 Address" | awk -F: '{print $2}' | tr -d ' ')
   if [ -z "$ipv4_address" ]; then
     ipv4_address=$(ipconfig | grep -A 5 "Wireless LAN adapter Wireless Network Connection" | grep "IPv4 Address" | awk -F: '{print $2}' | tr -d ' ')
   fi
@@ -28,7 +27,6 @@ get_ip_mac() {
   echo $ipv4_address
 }
 
-
 if [[ "$OSTYPE" == "darwin"* ]]; then
   echo "Detected macOS system"
   ip_address=$(get_ip_mac)
@@ -48,7 +46,7 @@ elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]];
   
   if [ ! -z "$ip_address" ]; then
     echo "WiFi IP address: $ip_address"
-    cmd.exe /c "setx /M REACT_NATIVE_PACKAGER_HOSTNAME $ip_address"
+    setx REACT_NATIVE_PACKAGER_HOSTNAME $ip_address
   else
     echo "Could not detect WiFi IP address"
     exit 1
@@ -68,27 +66,121 @@ else
   fi
 fi
 
-if [ -d "frontend" ]; then
-  cd frontend
-else
+if [ ! -d "frontend" ]; then
   echo "Frontend directory not found. Please run this script from the project root."
   exit 1
 fi
 
-# Run npm install in a new terminal
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
-  start cmd.exe /c "cd $(pwd) && npm i && echo 'Dependencies installed, starting Expo...' && npx expo start"
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-  osascript <<EOF
-  tell application "Terminal"
-  do script "cd $(pwd) && npm i && echo 'Dependencies installed, starting Expo...' && npx expo start"
-  end tell
-EOF
-else
-  gnome-terminal -- bash -c "cd $(pwd) && npm i && echo 'Dependencies installed, starting Expo...' && npx expo start; exec bash" || \
-  xterm -e "cd $(pwd) && npm i && echo 'Dependencies installed, starting Expo...' && npx expo start; exec bash" || \
-  konsole -e "cd $(pwd) && npm i && echo 'Dependencies installed, starting Expo...' && npx expo start; exec bash" || \
-  echo "Could not open a new terminal. Please run 'npm i && npx expo start' manually."
+if [ ! -d "backend/supabase-project" ]; then
+  echo "Supabase project directory not found. Please check the path: backend/supabase-project"
+  exit 1
 fi
 
-echo "Setup complete!"
+run_supabase() {
+  echo "Starting Supabase services..."
+  cd backend/supabase-project
+  docker compose up -d
+  cd ../../
+  echo "Supabase services started"
+}
+
+run_frontend() {
+  echo "Starting frontend with Docker Compose..."
+  cd frontend
+  
+  if [ ! -f "Dockerfile" ]; then
+    echo "Creating Dockerfile for Expo..."
+    cat > Dockerfile << 'DOCKEREOF'
+FROM node:18
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+EXPOSE 19000 19001 19002 19006 8081
+
+ENV WATCHPACK_POLLING=true
+
+CMD ["npx", "expo", "start", "--host", "lan"]
+DOCKEREOF
+  fi
+  
+  if [ ! -f "docker-compose.yml" ]; then
+    echo "Creating docker-compose.yml for Expo..."
+    
+    cat > docker-compose.yml << COMPOSEEOF
+version: '3'
+
+services:
+  expo-app:
+    build: .
+    ports:
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+      - "19006:19006"
+      - "8081:8081" 
+    environment:
+      - WATCHPACK_POLLING=true
+      - REACT_NATIVE_PACKAGER_HOSTNAME=${REACT_NATIVE_PACKAGER_HOSTNAME}
+      - EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    command: npx expo start --host lan
+    tty: true
+    stdin_open: true
+
+volumes:
+  node_modules:
+COMPOSEEOF
+  fi
+  
+  REACT_NATIVE_PACKAGER_HOSTNAME=$ip_address docker compose up -d
+  
+  cd ../
+  echo "Frontend container started"
+}
+
+# Main execution
+echo "Starting development environment..."
+
+echo ""
+read -p "Do you want to start the Supabase backend? (y/n): " start_backend
+if [[ "$start_backend" =~ ^[Yy]$ ]]; then
+  run_supabase
+else
+  echo "Skipping Supabase backend."
+fi
+
+echo ""
+read -p "Do you want to start the Expo frontend? (y/n): " start_frontend
+if [[ "$start_frontend" =~ ^[Yy]$ ]]; then
+  run_frontend
+else
+  echo "Skipping Expo frontend."
+fi
+
+echo "Setup complete! Both Supabase and Expo frontend are running."
+echo "- Expo is available at http://$ip_address:8081"
+echo "- Supabase Studio is available at http://localhost:8000"
+echo ""
+echo "To view logs:"
+echo "- Frontend: docker compose logs -f -f expo-app"
+echo "- Supabase: cd backend/supabase-project && docker compose logs -f"
+
+#TODO: Make reset for just db and just frontend & both
+
+while true; do
+echo ""
+  read -p "Do you want to quit or continue (q to quit, any key to continue)? " quit_choice
+  if [[ "$quit_choice" == "q" ]]; then
+    echo "Shutting down both frontend and backend..."
+    cd frontend && docker compose down
+    cd ..
+    cd backend/supabase-project && docker compose down && cd ../../
+    echo "Shutdown complete. Exiting..."
+    break
+  fi
+done
