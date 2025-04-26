@@ -17,7 +17,6 @@ const login = () => {
   const [password, setPassword] = useState('');
 
   return (
-    <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container2}>
           <Text style={styles.title}>Login</Text>
@@ -48,7 +47,7 @@ const login = () => {
            >
         </Input>
         <DefButton
-            onPress={() => router.push('/(tabs)/tags')}
+            onPress={() => router.push('/(authenticated)/tags')}
             text="Log in!"  />
         <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Not registered yet!? </Text>
@@ -58,19 +57,17 @@ const login = () => {
           </View>
         </View>
       </SafeAreaView>
-    </View>
   )
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
+
     safeArea: {
         flex: 1,
     },
     title: {
         fontSize: 40,
+        fontWeight: '600'
     },
     h2: {
         fontSize: 25,

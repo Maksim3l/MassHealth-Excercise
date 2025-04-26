@@ -1,6 +1,6 @@
 import * as React from "react"
 import Svg, { SvgProps, Rect, Path } from "react-native-svg"
-import Routines from "../app/(tabs)/(authenticated)/routines"
+import Routines from "../../app/(tabs)/(authenticated)/routines"
 
 const RoutinesIcon = (props: SvgProps) => {
   const { color = "#A4A4A8", ...rest } = props;

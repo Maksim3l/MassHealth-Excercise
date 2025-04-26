@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LeafletView } from 'react-native-leaflet-view';
 import { ScrollView } from 'react-native';
-import RoutinesIcon from '../../../assets/routinesnavbaricon';
+import RoutinesIcon from '../../../assets/tsxicons/routinesnavbaricon';
 import SectionTitle from '../../../components/sectiontitle';
 import CreateRoutineButton from '../../../components/createRoutineButton';
 import Routinebutton from '../../../components/routinebutton';
@@ -27,7 +27,10 @@ const Routines: React.FC = () => {
   
   const navigateToMap = () => {
     router.push('../map');
-  };
+  }
+
+  const navigateToPreview = (routineName : string) => {
+    router.push(`../routinepreview?routineName=${routineName}`);  };
   
   return (
     <SafeAreaView style={styles.container}>
@@ -80,9 +83,9 @@ const Routines: React.FC = () => {
         <SectionTitle textOne='Your' textTwo='Routines' />
         <View style={styles.buttonGroup}>
           <ScrollView horizontal={true}>
-            <CreateRoutineButton />
-            <Routinebutton routineName='Leg day' />
-            <Routinebutton routineName='Chest day' />
+            <CreateRoutineButton onPress={() => router.push('../createroutine')}/>
+            <Routinebutton routineName='Leg day' onPress={navigateToPreview} />
+            <Routinebutton routineName='Chest day' onPress={navigateToPreview} />
 
             <RoutinePlaceholder />
           </ScrollView>
@@ -105,12 +108,8 @@ const Routines: React.FC = () => {
             <RoutinePlaceholder />
             <RoutinePlaceholder />
           </ScrollView>
-
         </View>
-
-
       </ScrollView>
-     
     </SafeAreaView>
   );
 };
@@ -119,12 +118,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
+    marginTop: 20
+
   },
   sectionTitle: {
     flexDirection: 'row',
     marginHorizontal: 20,
     alignItems: 'center',
-    fontWeight: '700'
+    fontWeight: '700',
+    
 
   },
   sectionTitleText: {

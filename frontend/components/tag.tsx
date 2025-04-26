@@ -1,69 +1,63 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import React, { useState } from 'react';
+import { Pressable, Text, StyleSheet } from 'react-native';
 
 interface TagButtonProps {
-  onPress: () => void;
+  onPress?: () => void;
   text: string;
-  emoji?: string;
-  color?: string;
-  textColor?: string;
-  selected?: boolean;
+  textSize?: string;
 }
 
-export default function TagButton({ 
-  onPress, 
-  text, 
-  emoji = "👍", 
-  color = "#F5F5F5", 
-  textColor = "#444444",
-  selected = false 
-}: TagButtonProps) {
+const TagButton: React.FC<TagButtonProps> = ({ onPress, text, textSize = '16' }) => {
+  const [isPressed, setIsPressed] = useState(false);
+
+  const handlePress = () => {
+    setIsPressed(prev => !prev);
+    if (onPress) {
+      onPress();
+    }
+  };
+
   return (
-    <TouchableOpacity 
+    <Pressable 
       style={[
-        styles.button, 
-        { backgroundColor: color },
-        selected && styles.selectedButton
-      ]} 
-      onPress={onPress}
-      activeOpacity={0.7}
+        styles.button,
+        isPressed ? styles.buttonPressed : null
+      ]}
+      onPress={handlePress}
     >
-      <Text style={styles.emoji}>{emoji}</Text>
-      <Text style={[styles.text, { color: textColor }]}>{text}</Text>
-    </TouchableOpacity>
+      <Text 
+        style={[
+          styles.buttonText,
+          { fontSize: parseInt(textSize, 10) },
+          isPressed ? styles.buttonTextPressed : null
+        ]}
+      >
+        {text}
+      </Text>
+    </Pressable>
   );
-}
+};
 
 const styles = StyleSheet.create({
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 24,
-    marginHorizontal: 4,
-    marginVertical: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-    backgroundColor: '#F5F5F5',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
-    elevation: 1,
-    alignSelf: 'flex-start'
+    borderColor: '#A4A4A8',
+    margin: 5,
   },
-  selectedButton: {
-    borderColor: '#8257E9',
-    borderWidth: 2,
+  buttonPressed: {
+    backgroundColor: '#6E49EB',
   },
-  emoji: {
-    fontSize: 16,
-    marginRight: 8,
+  buttonText: {
+    color: '#6E49EB',
+    fontWeight: 'bold',
   },
-  text: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#444444',
+  buttonTextPressed: {
+    color: 'white',
   },
 });
+
+export default TagButton;

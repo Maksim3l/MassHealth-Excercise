@@ -1,10 +1,8 @@
 import { View, Text, SafeAreaView, StyleSheet } from 'react-native'
 import React from 'react'
-import { ScrollView } from 'react-native';
-import  WorkoutIcon  from '../../../assets/workoutnavbaricon'
+import  WorkoutIcon  from '../../../assets/tsxicons/workoutnavbaricon'
 import SectionTitle from '../../../components/sectiontitle';
 import Routinebutton from '../../../components/routinebutton';
-import RoutinePlaceholder from '../../../components/routinePlaceholder';
 import { LegendList } from '@legendapp/list';
 
 const routines = [
@@ -37,7 +35,7 @@ const Workout = () => {
             maintainScrollAtEnd
             maintainScrollAtEndThreshold={0.1}
             renderItem={({ item }) => (
-              <Routinebutton routineName={item.name} playIcon={true} />
+              <Routinebutton routineName={item.name} playIcon={true} onPress={() => console.log(`${item.name}`)}  />
               )}
             />
         </View>
@@ -54,7 +52,7 @@ const Workout = () => {
             maintainScrollAtEnd
             maintainScrollAtEndThreshold={0.1}
             renderItem={({ item }) => (
-              <Routinebutton routineName={item.name} playIcon={true}  />
+              <Routinebutton routineName={item.name} playIcon={true} onPress={() => console.log(`${item.name}`)}  />
               )}
             />
         </View>
@@ -72,6 +70,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
+    marginTop: 10
+
   },
   sectionTitle: {
     flexDirection: 'row',

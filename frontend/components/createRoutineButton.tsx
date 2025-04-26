@@ -1,9 +1,15 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import React from 'react'
 
-const CreateRoutineButton = () => {
+import { GestureResponderEvent } from 'react-native';
+
+interface CreateRoutineProps {
+  onPress: () => void;
+}
+
+const CreateRoutineButton: React.FC<CreateRoutineProps> = ({onPress}) => {
   return (
-    <TouchableOpacity style={styles.button}>
+    <TouchableOpacity style={styles.button} onPress={onPress}>
         <Text style={styles.text}>+</Text>
         <Text style={styles.text}>Create</Text>
     </TouchableOpacity>

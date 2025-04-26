@@ -3,11 +3,11 @@ import React from 'react'
 import { Tabs } from 'expo-router'
 import { Svg } from 'react-native-svg'
 
-import Activity from '../../../assets/activitynavbaricon';
-import Profile from '../../../assets/profilenavbaricon';
-import Workout from '../../../assets/workoutnavbaricon';
-import RoutinesIcon from '../../../assets/routinesnavbaricon';
-import HomeIcon from '../../../assets/homenavbaricon';
+import Activity from '../../../assets/tsxicons/activitynavbaricon';
+import Profile from '../../../assets/tsxicons/profilenavbaricon';
+import Workout from '../../../assets/tsxicons/workoutnavbaricon';
+import RoutinesIcon from '../../../assets/tsxicons/routinesnavbaricon';
+import HomeIcon from '../../../assets/tsxicons/homenavbaricon';
 
 const LoggedLayout = () => {
   return (

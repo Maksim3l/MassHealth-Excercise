@@ -4,7 +4,7 @@ import Svg, { SvgProps, Path } from "react-native-svg"
 const HomeIcon = (props: SvgProps) => {
   const { color = "#A4A4A8", ...rest } = props;
   return(
-  <Svg viewBox="0 0 32 32" width={24} height={24} fill="none" stroke={color} {...props}>
+  <Svg viewBox="0 0 32 32" width={30} height={30} fill="none" stroke={color} {...props}>
     <Path
       stroke={color}
       strokeWidth={2.5}

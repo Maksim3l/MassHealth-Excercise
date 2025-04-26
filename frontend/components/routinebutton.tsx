@@ -2,21 +2,32 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ImageBackground } from
 import React from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Overlay } from 'react-native-elements'
+import { SvgProps } from 'react-native-svg';
+import PlayIcon from '../assets/tsxicons/playicon_';
 
 interface RoutineButtonProps {
-    routineName?: string;
+    routineName: string;
+    playIcon?: boolean;
+    id?: number;
+    onPress: (routineName: string) => void;
 
 }
 
-const Routinebutton: React.FC<RoutineButtonProps> = ({routineName}) => {
+const Routinebutton: React.FC<RoutineButtonProps> = ({routineName, playIcon, onPress}) => {
   return (
     
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={() => onPress(routineName)}>
                 <ImageBackground style={styles.background} source={require('./../assets/Intersect.png')} >
                     <View style={styles.overlay}></View>
                     <View style={styles.text}>
                         <Text style={styles.textTitle}>{routineName}</Text>
                     </View>
+                    <View style={styles.buttonIcon}>
+                        {playIcon ? <PlayIcon /> : null}
+                    </View>
+
+
+
                 </ImageBackground>
                 
         </TouchableOpacity>
@@ -27,8 +38,8 @@ const Routinebutton: React.FC<RoutineButtonProps> = ({routineName}) => {
 
 const styles = StyleSheet.create({
     button: {
-        width: 130,
-        height: 120,
+        width: 124,
+        height: 124,
         marginLeft: 20,
         borderRadius: 8,
         overflow: 'hidden'
@@ -56,7 +67,12 @@ const styles = StyleSheet.create({
         width: "100%",
         position: 'absolute',
         backgroundColor: '#6E49EB',
+    },
+    buttonIcon: {
+        justifyContent: 'center',
+        alignItems: 'center'
     }
+
 })
 
 export default Routinebutton

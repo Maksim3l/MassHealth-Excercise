@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import OptionButton from '../../components/optionbutton'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DefButton from '../../components/button';
-import FemaleSymbolIcon from '../../assets/female_symbol_icon';
-import MaleSymbolIcon from '../../assets/male_symbol_icon';
+import FemaleSymbolIcon from '../../assets/tsxicons/female_symbol_icon';
+import MaleSymbolIcon from '../../assets/tsxicons/male_symbol_icon';
 import Input from '../../components/input';
 import { router } from 'expo-router';
 
@@ -18,7 +18,6 @@ const UserStats = () => {
 
 
   return (
-    <View style={styles.container}>
         <SafeAreaView style={styles.safearea}>
             <View style={styles.title}>
                 <Text style={styles.text}>Let's get to know you</Text>
@@ -95,23 +94,18 @@ const UserStats = () => {
                         isSelected={selectedExperience === "no"}
                         onPress={() => setSelectedExperience("no")}
                     />
-                </View>      
+                </View>
+                      
             </View>
 
         <View style={styles.continueButton}>
-            <DefButton text="Continue" onPress={() => router.replace('/(authenticated)/home')} />
+            <DefButton text="Continue" onPress={() => router.push('/(tabs)/home')} />
         </View>
-
-
         </SafeAreaView>
-    </View>
   )
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
     safearea: {
         flex: 1
     },

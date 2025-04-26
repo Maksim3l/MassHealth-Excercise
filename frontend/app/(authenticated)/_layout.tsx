@@ -16,7 +16,9 @@ export default function TabsLayout() {
       <Stack.Screen name="map"
                    options={{ title: "Map", 
                     }} />
-      <Stack.Screen name="(authenticated)" options={{ headerShown: false }} />
+      <Stack.Screen name="createroutine" options={{title: "CreateRoutine"}} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="routinepreview" />
       
        
       

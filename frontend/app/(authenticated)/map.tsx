@@ -35,7 +35,7 @@ const Map: React.FC = () => {
       <SafeAreaView style={styles.button}>
       <TouchableOpacity 
         style={styles.routinesButton}
-        onPress={() => router.push('/(authenticated)/routines')}
+        onPress={() => router.back()}
       >
         <Text style={styles.buttonText}>Go back</Text>
       </TouchableOpacity>

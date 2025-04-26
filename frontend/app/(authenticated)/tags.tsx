@@ -6,9 +6,8 @@ import { router } from "expo-router";
 
 const Tags = () => {
 
-    return(
-        <View style={styles.container}>
-            <SafeAreaView >
+  return(
+          <SafeAreaView style={styles.container}>
 
               <View style={styles.textContainer}>
                 <Text style={styles.title}>
@@ -40,9 +39,8 @@ const Tags = () => {
             <DefButton onPress={() => router.push('/userstats')} text={"Continue!"}>
               
             </DefButton>
-            </SafeAreaView>   
-        </View>
-    )
+          </SafeAreaView>   
+  )
 }
 
 
@@ -51,6 +49,8 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#f9f9f9',
+    marginTop: 20
+
   },
   textContainer: {
     alignItems: 'center',
