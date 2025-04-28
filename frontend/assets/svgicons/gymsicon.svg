@@ -1,0 +1,11 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="16" cy="14" r="12" fill="white" stroke="#6E49EB" stroke-width="2.5"/>
+<path d="M16 31L11 26H21L16 31Z" fill="#6E49EB"/>
+<rect x="9.71428" y="11.2857" width="2.28571" height="5.71429" rx="1" stroke="#6E49EB" stroke-width="1.5"/>
+<rect x="12" y="9" width="2.28571" height="10.2857" rx="1" stroke="#6E49EB" stroke-width="1.5"/>
+<rect x="17.7143" y="9" width="2.28571" height="10.2857" rx="1" stroke="#6E49EB" stroke-width="1.5"/>
+<rect x="20" y="11.2857" width="2.28571" height="5.71429" rx="1" stroke="#6E49EB" stroke-width="1.5"/>
+<path d="M14.2857 14.1429H17.7143" stroke="#6E49EB" stroke-width="1.5"/>
+<path d="M24 14.8929C24.4142 14.8929 24.75 14.5571 24.75 14.1429C24.75 13.7287 24.4142 13.3929 24 13.3929V14.8929ZM22.2857 14.1429V14.8929H24V14.1429V13.3929H22.2857V14.1429Z" fill="#6E49EB"/>
+<path d="M8 13.3929C7.58579 13.3929 7.25 13.7287 7.25 14.1429C7.25 14.5571 7.58579 14.8929 8 14.8929V13.3929ZM8 14.1429V14.8929H9.71429V14.1429V13.3929H8V14.1429Z" fill="#6E49EB"/>
+</svg>

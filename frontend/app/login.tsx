@@ -1,3 +1,6 @@
+
+
+
 import { View, Text, StyleSheet, Button, TouchableOpacity } from 'react-native'
 import { router, Router } from 'expo-router'
 import React, { useState } from 'react'
@@ -14,7 +17,6 @@ const login = () => {
   const [password, setPassword] = useState('');
 
   return (
-    <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container2}>
           <Text style={styles.title}>Login</Text>
@@ -41,10 +43,11 @@ const login = () => {
           placeholder='Password'
           value={password}
           onChangeText={setPassword}
+          secureTextEntry={true}
            >
         </Input>
         <DefButton
-            onPress={() => console.log("Button pressed")}
+            onPress={() => router.push('/(authenticated)/tags')}
             text="Log in!"  />
         <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Not registered yet!? </Text>
@@ -54,19 +57,17 @@ const login = () => {
           </View>
         </View>
       </SafeAreaView>
-    </View>
   )
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
+
     safeArea: {
         flex: 1,
     },
     title: {
         fontSize: 40,
+        fontWeight: '600'
     },
     h2: {
         fontSize: 25,

@@ -7,18 +7,22 @@ interface InputProps {
   value: string;
   onChangeText: (text: string) => void;
   secureTextEntry?: boolean;
+  style?: object; 
+  inputStyle?: object;
 }
 
 export default function Input({
   placeholder,
   value,
   onChangeText,
-  secureTextEntry = false
+  secureTextEntry = false,
+  style,
+  inputStyle
 }: InputProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <TextInput
-        style={styles.input}
+         style={[styles.input, inputStyle]}
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
@@ -33,7 +37,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    marginVertical: 10,
+    margin: 10,
     paddingHorizontal: 10,
     height: 50,
     justifyContent: 'center'
