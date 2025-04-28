@@ -29,7 +29,7 @@ const UserStats = () => {
             </View>
             <View style={styles.questions}>
                 <Text   >
-                    What Sex are you? hehehe
+                    What Sex are you?
                 </Text>
                 <View style={styles.buttonRow}>
                     <OptionButton 

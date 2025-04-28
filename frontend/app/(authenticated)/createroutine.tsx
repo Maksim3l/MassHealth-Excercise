@@ -52,10 +52,9 @@ const CreateRoutine = () => {
           <Text style={styles.subtitle}>Workouts</Text>
         </View>
         <View style={styles.workoutsContainer}>
-          <ExerciseinRoutine exerciseName="Calf Raise" reps={"3x10"} press={true}>
-
+          <ExerciseinRoutine exerciseName="Calf Raise" reps={"3x10"} press={true} destination='/excercisepreview'>
           </ExerciseinRoutine>
-        </View>
+        </View> 
 
         <View style={styles.continue}>
                 <DefButton text="Create" onPress={() => console.log("workout started")} />
@@ -115,6 +114,8 @@ const styles = StyleSheet.create({
     },
     workoutsContainer: {
       padding: 10,
+      minHeight: 100, 
+      marginBottom: 80, 
     },
     continue: {
       position: 'absolute',

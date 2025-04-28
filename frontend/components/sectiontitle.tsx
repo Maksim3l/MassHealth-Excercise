@@ -17,17 +17,18 @@ const SectionTitle: React.FC<SectionTitleProps> = ({ textOne, textTwo = 'Routine
 
 const styles = StyleSheet.create({
     container : {
-        margin: 20,
+        marginHorizontal: 20,
+        marginVertical: 10,
         flexDirection: 'row'
     },
     titleFirstHalfText: {
         fontWeight: '700',
-        fontSize: 24,
+        fontSize: 32,
         color: "#6E49EB"
     },
     titleSecondHalfText: {
       fontWeight: '700',
-      fontSize: 24,
+      fontSize: 32,
     },
 
 })

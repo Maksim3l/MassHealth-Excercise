@@ -23,7 +23,7 @@ const Routinebutton: React.FC<RoutineButtonProps> = ({routineName, playIcon, onP
                         <Text style={styles.textTitle}>{routineName}</Text>
                     </View>
                     <View style={styles.buttonIcon}>
-                        {playIcon ? <PlayIcon /> : null}
+                        {playIcon ? <PlayIcon strokeColor={"white"} /> : null}
                     </View>
 
 

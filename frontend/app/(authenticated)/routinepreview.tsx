@@ -12,6 +12,7 @@ import DefButton from '../../components/button';
 import BackIcon from '../../assets/tsxicons/backIcon';
 import DeleteIcon from '../../assets/tsxicons/deleteicon';
 import EditIcon from '../../assets/tsxicons/editicon';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface routineInfo {
     routineName?: string
@@ -52,7 +53,7 @@ const routinepreview: React.FC<routineInfo> =  () => {
 	});
 
 	return (
-		<View style={styles.container}>
+		<SafeAreaView style={styles.container}>
 		  <Stack.Screen
 			options={{
 			  headerTransparent: true,
@@ -92,7 +93,7 @@ const routinepreview: React.FC<routineInfo> =  () => {
 				</Text>
 				
 			
-				<ExerciseinRoutine exerciseName={"Squat"} reps={"3x10"} press={false}/>
+				<ExerciseinRoutine exerciseName={"Squat"} reps={"3x10"} press={false}  destination="/excercisedescription" />
 			  </View>
 			</Animated.ScrollView>
 
@@ -100,7 +101,7 @@ const routinepreview: React.FC<routineInfo> =  () => {
 			  <DefButton text="Continue" onPress={() => console.log("workout started")} />
 			</View>
 		  </View>
-		</View>
+		</SafeAreaView>
 	  );
 	  
 };

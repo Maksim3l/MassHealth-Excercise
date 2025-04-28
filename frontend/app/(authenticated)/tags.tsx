@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#f9f9f9',
-    marginTop: 20
+    margin: 20
 
   },
   textContainer: {

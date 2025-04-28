@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useRouter } from 'expo-router';
 import RoutinesIcon from '../assets/tsxicons/routinesnavbaricon';
 import PlusIcon from '../assets/tsxicons/plusicon';
 import MinusIcon from '../assets/tsxicons/minusicon';
@@ -10,12 +12,21 @@ interface ExerciseInRoutineProps {
   reps?: string;
   time?: string;
   press?: boolean;
-  emoji?: Svg
+  emoji?: Svg;
+  destination: string; // Route to navigate to on swipe
 }
 
-const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({ exerciseName, reps, time, press }) => {
+const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({ 
+  exerciseName, 
+  reps, 
+  time, 
+  press,
+  destination 
+}) => {
   const [isPressed, setPressed] = useState(false);
-
+  const router = useRouter();
+  const swipeableRef = useRef<Swipeable>(null);
+  
   const handlePress = () => {
     if (press) {
       setPressed(prev => !prev);
@@ -32,30 +43,96 @@ const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({ exerciseName, rep
     isPressed && press ? styles.pressedText : null,
   ];
 
-  return (
-    <Pressable style={containerStyle} onPress={handlePress}>
-      <View style={styles.innerStyle}>
-        <View style={styles.iconBackground}>
-          <RoutinesIcon height={24} width={24} color={isPressed && press ? "white" : "#6E49EB"} />
-        </View>
-        <Text style={exerciseNameStyle}>{exerciseName}</Text>
-      </View>
+  // Handle navigation when swiped
+  const handleSwipeOpen = () => {
+    // Close the swipeable after navigation
+    if (swipeableRef.current) {
+      swipeableRef.current.close();
+    }
+    
+    // This allows each instance of the component to navigate to a different route
+    router.push({
+      pathname: destination,
+      params: { 
+        exerciseName,
+      }
+    });
+  };
 
-      <View style={styles.rightSide}>
-        {reps && (
-          <Text style={[styles.repsText, isPressed && press ? styles.pressedText : null]}>
-            {reps}
-          </Text>
-        )}
-        {press && ( // only if press is true
-          isPressed ? (
-            <MinusIcon strokeColor={isPressed ? "white" : "#6E49EB"} width={24} height={24} />
-          ) : (
-            <PlusIcon strokeColor={isPressed ? "white" : "#6E49EB"} width={24} height={24} />
-          )
-        )}
-      </View>
-    </Pressable>
+  // Render left swipe actions (navigate button)
+  const renderLeftActions = (
+    progress: Animated.AnimatedInterpolation<number>,
+    dragX: Animated.AnimatedInterpolation<number>
+  ) => {
+    const trans = dragX.interpolate({
+      inputRange: [0, 100],
+      outputRange: [-100, 0],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <Animated.View 
+        style={[
+          styles.leftAction,
+          { transform: [{ translateX: trans }] }
+        ]}
+      >
+        <Pressable 
+          onPress={handleSwipeOpen}
+          style={styles.actionButton}
+        >
+          <Text style={styles.actionText}>Details</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  };
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1, width: '100%' }}>
+        <Swipeable
+        ref={swipeableRef}
+        friction={2}
+        leftThreshold={40}
+        rightThreshold={40}
+        renderLeftActions={renderLeftActions}
+      >
+        <Pressable style={containerStyle} onPress={handlePress}>
+          <View style={styles.innerStyle}>
+            <View style={styles.iconBackground}>
+              <RoutinesIcon 
+                height={24} 
+                width={24} 
+                color={isPressed && press ? "white" : "#6E49EB"} 
+              />
+            </View>
+            <Text style={exerciseNameStyle}>{exerciseName}</Text>
+          </View>
+          
+          <View style={styles.rightSide}>
+            {reps && (
+              <Text style={[styles.repsText, isPressed && press ? styles.pressedText : null]}>
+                {reps}
+              </Text>
+            )}
+            {press && (
+              isPressed ? (
+                <MinusIcon 
+                  strokeColor={isPressed ? "white" : "#6E49EB"} 
+                  width={24} 
+                  height={24} 
+                />
+              ) : (
+                <PlusIcon 
+                  strokeColor={isPressed ? "white" : "#6E49EB"} 
+                  width={24} 
+                  height={24} 
+                />
+              )
+            )}
+          </View>
+        </Pressable>
+      </Swipeable>
+    </GestureHandlerRootView>
   );
 };
 
@@ -66,9 +143,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 5,
-    margin: 20,
+    margin: 10, 
     borderRadius: 14,
-    backgroundColor: 'white', 
+    backgroundColor: 'white',
     shadowColor: '#6E49EB',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -102,6 +179,26 @@ const styles = StyleSheet.create({
     color: '#6E49EB',
     fontSize: 20,
     marginRight: 10,
+  },
+  leftAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 100,
+    height: '80%',
+    marginTop: 10,
+    marginLeft: 10,
+    backgroundColor: '#6E49EB',
+    borderRadius: 12,
+  },
+  actionButton: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
