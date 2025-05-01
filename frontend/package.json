@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@legendapp/list": "^1.0.3",
     "adb": "^0.2.0",
     "expo": "~52.0.46",
     "expo-constants": "~17.0.8",
@@ -20,10 +21,20 @@
     "nativewind": "^4.1.23",
     "react": "18.3.1",
     "react-native": "0.76.9",
-    "react-native-reanimated": "^3.16.2",
+    "react-native-circular-progress": "^1.4.1",
+    "react-native-elements": "^3.4.3",
+    "react-native-gesture-handler": "^2.25.0",
+    "react-native-leaflet-view": "^1.0.3",
+    "react-native-open-maps": "^0.4.3",
+    "react-native-overlay": "^0.5.0",
+    "react-native-parallax-scroll-view": "^0.21.3",
+    "react-native-reanimated": "~3.16.1",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
+    "react-native-svg": "^15.11.2",
+    "react-native-swipe-list-view": "^3.2.9",
     "react-native-vector-icons": "^10.2.0",
+    "react-native-webview": "^13.13.5",
     "tailwindcss": "^3.4.17"
   },
   "devDependencies": {

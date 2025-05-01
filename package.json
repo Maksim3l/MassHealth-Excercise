@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react-native-maps": "^1.22.6",
+    "react-native-open-maps": "^0.4.3"
+  }
+}
