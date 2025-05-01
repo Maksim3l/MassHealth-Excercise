@@ -9,7 +9,7 @@ BASE_URL = "https://www.muscleandstrength.com"
 MUSCLE_GROUPS = [
     "abductors", "abs", "adductors", "biceps", "calves", "chest", "forearms",
     "glutes", "hamstrings", "hip-flexors", "it-band", "lats", "lower-back",
-    "upper-back", "neck", "obliques", "palmar-fascia", "plantar-fascia",
+    "middle-back", "neck", "obliques", "palmar-fascia", "plantar-fascia",
     "quads", "shoulders", "traps", "triceps"
 ]
 
@@ -18,11 +18,20 @@ HEADERS = {
 }
 
 def get_exercise_links(muscle_group):
-    url = f"{BASE_URL}/exercises/{muscle_group}.html"
-    res = requests.get(url, headers=HEADERS)
-    soup = BeautifulSoup(res.text, "html.parser")
-    cards = soup.select("div.grid-x.grid-margin-x.grid-margin-y div.node-title a")
-    links = [BASE_URL + a["href"] for a in cards if a.get("href")]
+    def fetch_links(url):
+        res = requests.get(url, headers=HEADERS)
+        soup = BeautifulSoup(res.text, "html.parser")
+        cards = soup.select("div.grid-x.grid-margin-x.grid-margin-y div.node-title a")
+        return [BASE_URL + a["href"] for a in cards if a.get("href")]
+
+    url_with_html = f"{BASE_URL}/exercises/{muscle_group}.html"
+    links = fetch_links(url_with_html)
+
+    if not links:
+        url_without_html = f"{BASE_URL}/exercises/{muscle_group}"
+        print(f"  No links found with .html, trying: {url_without_html}")
+        links = fetch_links(url_without_html)
+
     return links
 
 def parse_exercise_page(url):
