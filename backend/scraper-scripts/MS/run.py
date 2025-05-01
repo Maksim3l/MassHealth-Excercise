@@ -1,6 +1,7 @@
 import subprocess
 import sys
+import runpy
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
-import scraper
+subprocess.run([sys.executable, "scraper.py"])
