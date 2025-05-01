@@ -43,7 +43,7 @@ MassHealth is a comprehensive fitness application designed to help users improve
 
 2. Start the development environment using start.sh
    ```bash
-   ./start.sh
+   .\start.ps1
    ```
 
 3. Follow the instructions on screen to run the app.
