@@ -1,11 +1,31 @@
+# ⚠️ DEPRECATED: This file is no longer maintained. Use `start.ps1` instead.
+
 #!/bin/bash
 
 get_ip_windows() {
+
   ipv4_address=$(ipconfig | grep -A 5 "Wireless LAN adapter" | grep "IPv4 Address" | awk -F: '{print $2}' | tr -d ' ')
+
   if [ -z "$ipv4_address" ]; then
     ipv4_address=$(ipconfig | grep -A 5 "Wireless LAN adapter Wireless Network Connection" | grep "IPv4 Address" | awk -F: '{print $2}' | tr -d ' ')
   fi
   
+  if [ -z "$ipv4_address" ]; then
+    ipv4_address=$(ipconfig | grep -A 5 "Ethernet adapter" | grep "IPv4 Address" | awk -F: '{print $2}' | tr -d ' ')
+  fi
+
+  if [ -z "$ipv4_address" ]; then
+    ipv4_address=$(ipconfig | grep -A 5 "Ethernet adapter Ethernet" | grep "IPv4 Address" | awk -F: '{print $2}' | tr -d ' ')
+  fi
+
+  if [ -z "$ipv4_address" ]; then
+    ipv4_address=$(ipconfig | grep -A 5 "Ethernet adapter Local Area Connection" | grep "IPv4 Address" | awk -F: '{print $2}' | tr -d ' ')
+  fi
+  
+  if [ -z "$ipv4_address" ]; then
+    ipv4_address=$(ipconfig | grep "IPv4 Address" | head -1 | awk -F: '{print $2}' | tr -d ' ')
+  fi
+ 
   echo $ipv4_address
 }
 
@@ -76,12 +96,54 @@ if [ ! -d "backend/supabase-project" ]; then
   exit 1
 fi
 
+if [ ! -d "backend/data" ]; then
+  echo "Creating backend/data directory for database backups..."
+  mkdir -p backend/data
+fi
+
+backup_database() {
+  echo "Creating database backup..."
+  mkdir -p backend/data
+  docker exec -t supabase-db pg_dump -U postgres -d postgres > backend/data/database_backup.sql
+  if [ $? -eq 0 ]; then
+    echo "Database backup created at backend/data/database_backup.sql"
+  else
+    echo "Error creating database backup"
+  fi
+}
+
+restore_database() {
+  echo "Restoring database from backup..."
+  if [ -f "backend/data/database_backup.sql" ]; then
+    echo "Waiting 5 seconds for database to fully initialize..."
+    sleep 5
+    cat backend/data/database_backup.sql | docker exec -i supabase-db psql -U postgres -d postgres
+    if [ $? -eq 0 ]; then
+      echo "Database restored successfully"
+    else
+      echo "Error restoring database"
+    fi
+  else
+    echo "No backup file found at backend/data/database_backup.sql"
+  fi
+}
+
 run_supabase() {
   echo "Starting Supabase services..."
   cd backend/supabase-project
   docker compose up -d
   cd ../../
   echo "Supabase services started"
+
+  if [ -f "backend/data/database_backup.sql" ]; then
+    echo "Database backup found."
+    read -p "Do you want to restore the database from backup? (y/n): " restore_db
+    if [[ "$restore_db" =~ ^[Yy]$ ]]; then
+      restore_database
+    else
+      echo "Skipping database restore."
+    fi
+  fi
 }
 
 run_frontend() {
@@ -170,17 +232,44 @@ echo "To view logs:"
 echo "- Frontend: docker compose logs -f -f expo-app"
 echo "- Supabase: cd backend/supabase-project && docker compose logs -f"
 
-#TODO: Make reset for just db and just frontend & both
-
 while true; do
-echo ""
-  read -p "Do you want to quit or continue (q to quit, any key to continue)? " quit_choice
-  if [[ "$quit_choice" == "q" ]]; then
+  echo ""
+  echo "Do you want to quit or continue"
+  echo "- q - quit,"
+  echo "- r - restart,"
+  echo "- rf - restart frontend,"
+  echo "- rb - restart backend,"
+  read -p "or press any key to continue: " option
+  if [[ "$option" == "q" ]]; then
+    echo "Creating database backup before shutting down..."
+    backup_database
+    
     echo "Shutting down both frontend and backend..."
     cd frontend && docker compose down
     cd ..
-    cd backend/supabase-project && docker compose down && cd ../../
+    cd backend/supabase-project && docker compose down 
+    cd ../../
     echo "Shutdown complete. Exiting..."
     break
+  elif [[ "$option" == "rb" ]]; then
+    echo "Restarting backend..."
+    cd backend/supabase-project && docker compose down && docker compose up -d 
+    cd ../../
+    echo "Backend restarted."
+  elif [[ "$option" == "rf" ]]; then
+    echo "Restarting frontend..."
+    cd frontend && docker compose down && docker compose up -d 
+    cd ../
+    echo "Frontend restarted."
+  elif [[ "$option" == "r" ]]; then
+    echo "Restarting both frontend and backend..."
+
+    cd frontend && docker compose down && docker compose up -d && cd ../
+    echo "Frontend restarted."
+
+    cd backend/supabase-project && docker compose down && docker compose up -d && cd ../../
+    echo "Backend restarted."
+  else
+    echo "Continuing development..."
   fi
 done
