@@ -52,7 +52,7 @@ const EditRoutine = () => {
           <Text style={styles.subtitle}>Workouts</Text>
         </View>
         <View style={styles.workoutsContainer}>
-          <ExerciseinRoutine exerciseName="Calf Raise" reps={"3x10"} press={true}>
+          <ExerciseinRoutine exerciseName="Calf Raise" reps={"3x10"} press={true} destination={''}>
 
           </ExerciseinRoutine>
         </View>

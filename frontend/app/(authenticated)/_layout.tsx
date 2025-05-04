@@ -1,6 +1,19 @@
-import { Stack, Tabs } from "expo-router";
+import { router, Stack, Tabs } from "expo-router";
+import { useEffect } from "react";
+import { supabase } from "../../utils/supabase";
 
 export default function TabsLayout() {
+  useEffect(() => {
+    const {data: authListener} = supabase.auth.onAuthStateChange((event, session) => {
+      if(!session) {
+        router.replace('/login')
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
   return (
     <Stack 
   screenOptions={{ headerShown: false }}

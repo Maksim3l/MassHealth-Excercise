@@ -20,19 +20,13 @@ const Tags = () => {
 
           
               <View style={styles.buttonsContainer}>
-                  <TagButton onPress={function (): void {
-                      throw new Error("Function not implemented.");
-                    }} text={"Great Health"}>
+                  <TagButton  onPress={() => console.log("not")} text={"Great Health"}>
                   </TagButton>
 
-                  <TagButton onPress={function (): void {
-                      throw new Error("Function not implemented.");
-                    }} text={"Athlete Waters"}>
+                  <TagButton onPress={() => console.log("not")} text={"Athlete Waters"}>
                   </TagButton>
 
-                  <TagButton onPress={function (): void {
-                      throw new Error("Function not implemented.");
-                    }} text={"Great Body"}>
+                  <TagButton onPress={() => console.log("not")} text={"Great Body"}>
                   </TagButton>
             </View>
 

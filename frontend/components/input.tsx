@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, InputModeOptions } from 'react-native'
 import React from 'react'
 
 interface InputProps {
@@ -9,6 +9,7 @@ interface InputProps {
   secureTextEntry?: boolean;
   style?: object; 
   inputStyle?: object;
+  inputMode?: InputModeOptions;
 }
 
 export default function Input({
@@ -17,7 +18,8 @@ export default function Input({
   onChangeText,
   secureTextEntry = false,
   style,
-  inputStyle
+  inputStyle,
+  inputMode
 }: InputProps) {
   return (
     <View style={[styles.container, style]}>
@@ -26,6 +28,7 @@ export default function Input({
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
+        inputMode={inputMode}
         secureTextEntry={secureTextEntry}
       />
     </View>

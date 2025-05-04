@@ -1,22 +1,63 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native'
 import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GoogleButton from '../components/googlebutton';
 import Input from '../components/input';
 import DefButton from '../components/button';
 import { router } from 'expo-router';
+import { supabase } from '../utils/supabase'
 
 const Register = () => {
 
     const [name, setName] = useState('')
-    const [lastName, setLastName] = useState('')
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [passwordRepeat, setPasswordRepeat] = useState('')
+    const [loading, setLoading] = useState(false)
 
     const OnRegisterPressed = () => {
-      router.push('/tags')
+      signUpWithEmail();
+    }
+
+    async function signUpWithEmail() {
+      setLoading(true)
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+      });
+      
+      if (error) {
+        Alert.alert(error.message);
+        setLoading(false);
+        return;
+      }
+      
+      if (data.user) {
+        const { error: metaDataError } = await supabase
+          .from('User_Metadata')
+          .insert([{
+            user_id: data.user.id,
+            name: name,
+            username: username,
+            lastname: '',
+            age: null,
+            gender: '',
+            height: null,
+            weight: null,
+            fitness_experience: null
+          }]);
+      
+        if (metaDataError) {
+          Alert.alert('Error saving data', metaDataError.message);
+        } else {
+          router.push('/(authenticated)/tags');
+        }
+      }
+      
+      setLoading(false);
+      
     }
 
   return (
@@ -51,7 +92,6 @@ const Register = () => {
           placeholder='Username'
           value={username}
           onChangeText={setUsername}
-          secureTextEntry={true}
            />
         <Input
           placeholder='Passsword'
