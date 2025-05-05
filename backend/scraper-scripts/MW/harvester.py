@@ -4,6 +4,7 @@ import time
 import csv
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+from playwright.sync_api import sync_playwright
 
 
 class MuscleWikiScraper:
@@ -35,9 +36,16 @@ class MuscleWikiScraper:
         """Extract numbered step instructions from the page"""
         instructions = []
         
-        # Updated selector to better target the steps container
-        steps_container = soup.select_one("dl.my-5")
-        
+        steps_container = soup.select_one("dl[class*='my-5'][class*='grid']")
+
+        if not steps_container:
+            steps_container = soup.select_one("dl.my-5, dl.grid")
+            
+        if not steps_container:
+            parent_div = soup.select_one("div.sm\\:pb-5 div.flex.flex-col")
+            if parent_div:
+                steps_container = parent_div.find("dl")
+
         if steps_container:
             # Look for all divs with the border-gray-200 class that contain the steps
             steps = steps_container.find_all("div", class_="border-gray-200")
@@ -57,8 +65,8 @@ class MuscleWikiScraper:
         detailed_info = {"instructions": [], "tips": []}
         
         # Find the detailed instructions container - more specific selector
-        detailed_div = soup.select_one("div.mb-8.rounded-lg.border")
-        
+        detailed_div = soup.select_one("div.mb-8.rounded-lg.border.bg-white.py-4")
+
         if detailed_div:
             paragraphs = detailed_div.find_all("p", class_="text-left")
             
@@ -123,29 +131,29 @@ class MuscleWikiScraper:
         return result
 
     def scrape_exercise_page(self, target_url):
-        """Scrape detailed information from individual exercise page"""
-        # Choose the male version
+        """Scrape detailed information from individual exercise page using Playwright"""
         male_url = target_url.get("male", "")
         if not male_url:
             return None
-        
+
         full_url = urljoin(self.base_url, male_url)
-        
+        print(f"\tProcessing {full_url}")
+
         try:
-            response = requests.get(full_url, headers=self.headers)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            # Extract step-by-step instructions
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                page.goto(full_url)
+                page.wait_for_load_state("networkidle")
+                html = page.content()
+                browser.close()
+
+            soup = BeautifulSoup(html, "html.parser")
+
             step_instructions = self.extract_step_instructions(soup)
-            
-            # Extract detailed instructions and tips
             detailed_info = self.extract_detailed_instructions(soup)
-            
-            # Extract video URLs
             video_urls = self.extract_video_urls(soup)
-            
+
             return {
                 "overview": step_instructions,
                 "instructions": detailed_info["instructions"],
@@ -153,8 +161,9 @@ class MuscleWikiScraper:
                 "video_urls": video_urls,
                 "source_url": full_url
             }
-        except requests.exceptions.RequestException as e:
-            print(f"Error scraping exercise page {full_url}: {e}")
+
+        except Exception as e:
+            print(f"Error scraping {full_url} with Playwright: {e}")
             return None
 
     def process_exercise(self, exercise):
@@ -172,7 +181,6 @@ class MuscleWikiScraper:
             "source_url": ""
         }
         
-        # Get detailed info from exercise page
         detailed_info = self.scrape_exercise_page(exercise.get("target_url", {}))
         if detailed_info:
             exercise_data.update(detailed_info)
@@ -191,16 +199,13 @@ class MuscleWikiScraper:
             result = self.process_exercise(exercise)
             if result:
                 self.results.append(result)
-            
-            # Add delay to avoid overwhelming the server
-            if i < total - 1:  # Don't delay after the last item
+
+            if i < total - 1: 
                 time.sleep(delay)
         
-        # Save results to JSON file
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(self.results, f, indent=4)
         
-        # Also save as CSV for convenience
         csv_file = output_file.replace('.json', '.csv')
         self.save_to_csv(csv_file)
         
@@ -212,7 +217,6 @@ class MuscleWikiScraper:
             return
         
         with open(csv_file, 'w', newline='', encoding='utf-8') as f:
-            # Define fieldnames for the CSV
             fieldnames = ["name", "primary_muscle", "equipment", "experience_level", 
                          "overview", "instructions", "tips", "video_front", "video_side", "source_url"]
             
@@ -220,10 +224,8 @@ class MuscleWikiScraper:
             writer.writeheader()
             
             for result in self.results:
-                # Create a modified copy for CSV output
                 result_copy = result.copy()
                 
-                # Convert lists to strings for CSV
                 if isinstance(result_copy.get("overview"), list):
                     result_copy["overview"] = " | ".join(result_copy["overview"])
                 if isinstance(result_copy.get("instructions"), list):
@@ -231,7 +233,6 @@ class MuscleWikiScraper:
                 if isinstance(result_copy.get("tips"), list):
                     result_copy["tips"] = " | ".join(result_copy["tips"])
                 
-                # Extract video URLs into separate columns
                 video_urls = result_copy.pop("video_urls", {})
                 result_copy["video_front"] = video_urls.get("front", "")
                 result_copy["video_side"] = video_urls.get("side", "")
@@ -241,4 +242,4 @@ class MuscleWikiScraper:
 
 if __name__ == "__main__":
     scraper = MuscleWikiScraper()
-    scraper.run(delay=1.5)  # Add a 1.5-second delay between requests to be considerate
+    scraper.run(delay=1)
