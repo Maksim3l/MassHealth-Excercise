@@ -1,7 +1,5 @@
-# Za https://musclewiki.com/directory
 import requests
 import json
-import re
 import time
 import csv
 from bs4 import BeautifulSoup
@@ -36,14 +34,21 @@ class MuscleWikiScraper:
     def extract_step_instructions(self, soup):
         """Extract numbered step instructions from the page"""
         instructions = []
-        steps_container = soup.select_one("dl.my-5.grid")
+        
+        # Updated selector to better target the steps container
+        steps_container = soup.select_one("dl.my-5")
         
         if steps_container:
-            steps = steps_container.find_all("div", class_="flex")
+            # Look for all divs with the border-gray-200 class that contain the steps
+            steps = steps_container.find_all("div", class_="border-gray-200")
+            
             for step in steps:
-                step_text = step.find("dd").get_text(strip=True)
-                if step_text:
-                    instructions.append(step_text)
+                # Extract text from the dd element which contains the instruction
+                dd_element = step.find("dd")
+                if dd_element:
+                    step_text = dd_element.get_text(strip=True)
+                    if step_text:
+                        instructions.append(step_text)
         
         return instructions
 
@@ -51,8 +56,8 @@ class MuscleWikiScraper:
         """Extract detailed instructions and tips from the bottom section"""
         detailed_info = {"instructions": [], "tips": []}
         
-        # Find the detailed instructions container
-        detailed_div = soup.select_one("div.mb-8.rounded-lg.border.bg-white")
+        # Find the detailed instructions container - more specific selector
+        detailed_div = soup.select_one("div.mb-8.rounded-lg.border")
         
         if detailed_div:
             paragraphs = detailed_div.find_all("p", class_="text-left")
@@ -68,38 +73,54 @@ class MuscleWikiScraper:
                     continue
                 
                 # Check if we're entering the tips section
-                if "Ty's Tips" in text:
+                if "Ty's Tips" in text or "**Ty's Tips**" in text:
                     in_tips_section = True
                     in_instructions_section = False
                     continue
                 
                 # Check if we're entering the detailed how-to section
-                if "Detailed How To:" in text:
+                if "Detailed How To:" in text or "**Detailed How To:**" in text:
                     in_instructions_section = True
                     in_tips_section = False
                     continue
                 
-                # Skip lines with just formatting
-                if text == "**" or text == "**":
-                    continue
-                
                 # Add the text to the appropriate section
                 if in_tips_section and text:
-                    detailed_info["tips"].append(text)
+                    # Clean up markdown formatting
+                    clean_text = text.replace("**", "").strip()
+                    if clean_text and clean_text != "Ty's Tips":
+                        detailed_info["tips"].append(clean_text)
+                        
                 elif in_instructions_section and text:
-                    if text.startswith("-"):
-                        detailed_info["instructions"].append(text[1:].strip())
-                    else:
-                        detailed_info["instructions"].append(text)
+                    # Clean up markdown formatting and bullet points
+                    clean_text = text.replace("**", "").strip()
+                    if clean_text and clean_text != "Detailed How To:":
+                        if clean_text.startswith("-"):
+                            detailed_info["instructions"].append(clean_text[1:].strip())
+                        else:
+                            detailed_info["instructions"].append(clean_text)
         
         return detailed_info
 
-    def extract_video_url(self, soup):
-        """Extract the video URL from the page"""
-        video_element = soup.select_one("video.rounded-lg source")
-        if video_element and video_element.has_attr("src"):
-            return video_element["src"]
-        return None
+    def extract_video_urls(self, soup):
+        """Extract all video URLs from the page"""
+        video_urls = []
+        
+        # Find all video sources
+        video_elements = soup.select("video.rounded-lg source")
+        
+        for video in video_elements:
+            if video.has_attr("src"):
+                video_urls.append(video["src"])
+        
+        # Return a dictionary with front and side views if available
+        result = {}
+        if len(video_urls) >= 1:
+            result["front"] = video_urls[0]
+        if len(video_urls) >= 2:
+            result["side"] = video_urls[1]
+            
+        return result
 
     def scrape_exercise_page(self, target_url):
         """Scrape detailed information from individual exercise page"""
@@ -122,14 +143,14 @@ class MuscleWikiScraper:
             # Extract detailed instructions and tips
             detailed_info = self.extract_detailed_instructions(soup)
             
-            # Extract video URL
-            video_url = self.extract_video_url(soup)
+            # Extract video URLs
+            video_urls = self.extract_video_urls(soup)
             
             return {
                 "overview": step_instructions,
                 "instructions": detailed_info["instructions"],
                 "tips": detailed_info["tips"],
-                "video_url": video_url,
+                "video_urls": video_urls,
                 "source_url": full_url
             }
         except requests.exceptions.RequestException as e:
@@ -147,7 +168,7 @@ class MuscleWikiScraper:
             "overview": [],
             "instructions": [],
             "tips": [],
-            "video_url": "",
+            "video_urls": {},
             "source_url": ""
         }
         
@@ -191,22 +212,30 @@ class MuscleWikiScraper:
             return
         
         with open(csv_file, 'w', newline='', encoding='utf-8') as f:
-            # Get all unique keys
+            # Define fieldnames for the CSV
             fieldnames = ["name", "primary_muscle", "equipment", "experience_level", 
-                         "overview", "instructions", "tips", "video_url", "source_url"]
+                         "overview", "instructions", "tips", "video_front", "video_side", "source_url"]
             
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             
             for result in self.results:
-                # Convert lists to strings for CSV
+                # Create a modified copy for CSV output
                 result_copy = result.copy()
+                
+                # Convert lists to strings for CSV
                 if isinstance(result_copy.get("overview"), list):
                     result_copy["overview"] = " | ".join(result_copy["overview"])
                 if isinstance(result_copy.get("instructions"), list):
                     result_copy["instructions"] = " | ".join(result_copy["instructions"])
                 if isinstance(result_copy.get("tips"), list):
                     result_copy["tips"] = " | ".join(result_copy["tips"])
+                
+                # Extract video URLs into separate columns
+                video_urls = result_copy.pop("video_urls", {})
+                result_copy["video_front"] = video_urls.get("front", "")
+                result_copy["video_side"] = video_urls.get("side", "")
+                
                 writer.writerow(result_copy)
 
 
