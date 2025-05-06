@@ -1,16 +1,47 @@
-import { View, Text, SafeAreaView, StyleSheet, Image, Dimensions } from 'react-native';
-import React from 'react';
+import { View, Text, SafeAreaView, StyleSheet, Image, Dimensions, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import HomeIcon from '../../../assets/tsxicons/homenavbaricon';
 import FireIcon from '../../../assets/tsxicons/fireicon';
 import SleepIcon from '../../../assets/tsxicons/sleepicon';
 import CustomDate from '../../../components/date';
+import { supabase } from '../../../utils/supabase';
 
 const width = Dimensions.get('window').width;
 
 const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const home = () => {
+
+  const [profile, setProfile] = useState({ name: '', username: '' });
+  
+    useEffect(() => {
+      const fetchProfile = async () => {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+        if (userError) {
+          Alert.alert('Error', userError.message);
+          return;
+        }
+  
+        if (user) {
+          const { data, error } = await supabase
+            .from('User_Metadata')
+            .select('name, username')
+            .eq('user_id', user.id)
+            .single();
+  
+          if (error) {
+            Alert.alert('Error', error.message);
+          } else {
+            setProfile({ name: data.name, username: data.username });
+          }
+        }
+      };
+  
+      fetchProfile();
+    }, []);
+
   const today = new Date();
   const todayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1; // Make Monday index 0, Sunday index 6
   const weekDates = dayNames.map((_, index) => {
@@ -32,7 +63,7 @@ const home = () => {
         </View>
         <View style={styles.upperRow}>
           <View style={styles.user}>
-            <Text style={styles.userText}>Hello, User</Text>
+            <Text style={styles.userText}>Hello, {profile.name}</Text>
             <Text style={styles.userDate}>{today.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
           </View>
           <View style={styles.circle}>
