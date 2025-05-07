@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,8 +9,8 @@ import SectionTitle from '../../../components/sectiontitle';
 import CreateRoutineButton from '../../../components/createRoutineButton';
 import Routinebutton from '../../../components/routinebutton';
 import RoutinePlaceholder from '../../../components/routinePlaceholder';
+import * as Location from 'expo-location';
 
-// Define the HTML directly in the component
 const leafletHtml = `
 <!DOCTYPE html>
 <html>
@@ -20,6 +20,14 @@ const leafletHtml = `
   <style>
     body { margin: 0; padding: 0; }
     #map { width: 100%; height: 100vh; }
+    .user-location-marker {
+      border-radius: 50%;
+      width: 12px;
+      height: 12px;
+      background-color: #4285F4;
+      border: 2px solid white;
+      box-shadow: 0 0 3px rgba(0,0,0,0.3);
+    }
   </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -29,6 +37,7 @@ const leafletHtml = `
   <script>
     const map = L.map('map');
     let markers = [];
+    let userMarker = null;
     
     window.addEventListener('message', function(event) {
       try {
@@ -42,6 +51,44 @@ const leafletHtml = `
           message.payload.forEach(layer => {
             L.tileLayer(layer.url).addTo(map);
           });
+        }
+        
+        if (message.type === 'markers') {
+          // Clear existing markers
+          markers.forEach(marker => map.removeLayer(marker));
+          markers = [];
+          
+          // Add new markers
+          message.payload.forEach(markerData => {
+            const marker = L.marker([markerData.lat, markerData.lng]).addTo(map);
+            if (markerData.icon) {
+              marker.setIcon(L.icon(markerData.icon));
+            }
+            markers.push(marker);
+          });
+        }
+        
+        if (message.type === 'userLocation') {
+          // Remove previous user marker
+          if (userMarker) map.removeLayer(userMarker);
+          
+          // Create custom user location marker
+          const userIcon = L.divIcon({
+            className: 'user-location-marker',
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+          });
+          
+          userMarker = L.marker([message.payload.lat, message.payload.lng], {
+            icon: userIcon,
+            zIndexOffset: 1000
+          }).addTo(map);
+          
+          // Add this block to center the map if center is true
+          if (message.payload.center) {
+            map.setView([message.payload.lat, message.payload.lng], 
+                        message.payload.zoom || 13);
+          }
         }
         
         if (message.type === 'customScript') {
@@ -59,37 +106,143 @@ const leafletHtml = `
 const Routines: React.FC = () => {
   const router = useRouter();
   const webViewRef = useRef<WebView>(null);
-  
-  const [selectedLocation] = useState({
-    latitude: 46.0569,
+  const [userLocation, setUserLocation] = useState({
+    latitude: 46.0569,  // Default to Ljubljana
     longitude: 14.5058
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [city, setCity] = useState<string | null>(null);
   
+  // Fixed locations
   const locations = [
     { latitude: 46.0569, longitude: 14.5058 }, // Ljubljana
     { latitude: 46.2382, longitude: 14.3555 }, // Kranj
     { latitude: 45.5475, longitude: 13.7304 }  // Koper
   ];
   
+  // Fetch user location
+  useEffect(() => {
+    let locationSubscription: Location.LocationSubscription | null = null;
+    let isMounted = true;
+    
+    const getLocation = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Request permission
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('Permission to access location was denied');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Get initial location
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced
+        });
+        
+        if (isMounted) {
+          //console.log('Got location:', location.coords);
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude
+          });
+          
+          // Get city name
+          try {
+            const geocode = await Location.reverseGeocodeAsync({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude
+            });
+            
+            if (geocode.length > 0 && geocode[0].city) {
+              setCity(geocode[0].city);
+            }
+          } catch (error) {
+            console.error("Error getting city name:", error);
+          }
+        }
+        
+        // Start watching position updates
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 300000,    // Update every 5 minuten
+            distanceInterval: 70,  // Update if moved 100 meters 
+          },
+          (newLocation) => {
+            if (isMounted) {
+              //console.log('Location updated:', newLocation.coords);
+              setUserLocation({
+                latitude: newLocation.coords.latitude,
+                longitude: newLocation.coords.longitude
+              });
+            }
+          }
+        );
+      } catch (error) {
+        console.error("Error getting location:", error);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    getLocation();
+    
+    return () => {
+      isMounted = false;
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
+  }, []);
+  
+  // Update map when location changes
+  useEffect(() => {
+    if (webViewRef.current && !isLoading) {
+      // Add user location marker
+      webViewRef.current.injectJavaScript(`
+        try {
+          window.postMessage(JSON.stringify({
+            type: 'userLocation',
+            payload: {
+              lat: ${userLocation.latitude},
+              lng: ${userLocation.longitude},
+              center: true, // Add this line to center the map
+              zoom: 13 // You can adjust zoom level as needed
+            }
+          }));
+          true;
+        } catch(e) {
+          console.error('Error in userLocation:', e);
+          true;
+        }
+      `);
+    }
+  }, [userLocation, isLoading]);
+  
   const navigateToMap = () => {
     router.push('../map');
   }
 
-  const navigateToPreview = (routineName : string) => {
+  const navigateToPreview = (routineName: string) => {
     router.push(`../routinepreview?routineName=${routineName}`);
   };
   
   const handleWebViewLoad = () => {
     if (webViewRef.current) {
-      // Set center position
+      // Set center position to user's location
       webViewRef.current.injectJavaScript(`
         try {
           window.postMessage(JSON.stringify({
             type: 'mapCenterPosition',
             payload: {
-              lat: ${selectedLocation.latitude},
-              lng: ${selectedLocation.longitude},
-              zoom: 9
+              lat: ${userLocation.latitude},
+              lng: ${userLocation.longitude},
+              zoom: 13 // Use higher zoom for better view of user's location
             }
           }));
           true;
@@ -113,6 +266,24 @@ const Routines: React.FC = () => {
           true;
         } catch(e) {
           console.error('Error in mapLayers:', e);
+          true;
+        }
+      `);
+      
+      // Add markers for locations
+      webViewRef.current.injectJavaScript(`
+        try {
+          window.postMessage(JSON.stringify({
+            type: 'markers',
+            payload: [
+              { lat: 46.0569, lng: 14.5058 },
+              { lat: 46.2382, lng: 14.3555 },
+              { lat: 45.5475, lng: 13.7304 }
+            ]
+          }));
+          true;
+        } catch(e) {
+          console.error('Error in markers:', e);
           true;
         }
       `);
@@ -163,7 +334,7 @@ const Routines: React.FC = () => {
           {/* Overlay with location text */}
           <View style={styles.mapOverlay}>
             <Text style={styles.mapLocationText}>
-              Ljubljana • Kranj • Koper
+              {city ? `${city} • ` : ''}Ljubljana • Maribor • Celje
             </Text>
           </View>
         </TouchableOpacity>
