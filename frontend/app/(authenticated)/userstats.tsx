@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, TextInput } from 'react-native'
-import React, { useState } from 'react'
+import { View, Text, StyleSheet, TextInput, Alert } from 'react-native'
+import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import OptionButton from '../../components/optionbutton'
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -8,13 +8,75 @@ import FemaleSymbolIcon from '../../assets/tsxicons/female_symbol_icon';
 import MaleSymbolIcon from '../../assets/tsxicons/male_symbol_icon';
 import Input from '../../components/input';
 import { router } from 'expo-router';
+import { Session } from '@supabase/supabase-js'
+import { supabase } from '../../utils/supabase';
 
 const UserStats = () => {
-    const [age, setAge] = useState('')
-    const [height, setHeight] = useState('')
-    const [weight, setWeight] = useState('')
+    const [age, setAge] = useState('');
+    const [height, setHeight] = useState('');
+    const [weight, setWeight] = useState('');
     const [selectedGender, setSelectedGender] = useState<string | null>(null);
-    const [selectedExperience, setSelectedExperience] = useState<string | null>(null);
+    const [selectedExperience, setSelectedExperience] = useState<Boolean | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
+    const [loading, setLoading] = useState(false); 
+
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (!session) {
+                router.replace('/login');
+            } else {
+                setSession(session);
+            }
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!session) {
+                router.replace('/login');
+            } else {
+                setSession(session);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    // If no session, show nothing (will redirect)
+    if (!session) {
+        return null;
+    }
+
+    const handleContinue = async () => {
+        if (!selectedGender || !age || !weight || selectedExperience === null) {
+            Alert.alert("Error", "Fill in all fields");
+            return;
+        }
+    
+        setLoading(true);
+    
+        try {
+            const { error } = await supabase
+                .from('User_Metadata')
+                .upsert([{
+                    user_id: session?.user?.id,
+                    gender: selectedGender,
+                    age: parseInt(age),
+                    height: parseInt(height),
+                    weight: parseInt(weight),
+                    fitness_experience: selectedExperience === true
+                }], { onConflict: 'user_id' });
+    
+            if (error) throw error;
+    
+            router.push('/(tabs)/home');
+        } catch (error) {
+            Alert.alert('Error ', (error as Error).message || "Failed to load user stats");
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    
 
 
   return (
@@ -86,20 +148,20 @@ const UserStats = () => {
                 <View style={styles.buttonRow}>
                     <OptionButton 
                         text="Yes" 
-                        isSelected={selectedExperience === "yes"}
-                        onPress={() => setSelectedExperience("yes")}
+                        isSelected={selectedExperience === true}
+                        onPress={() => setSelectedExperience(true)}
                     />
                     <OptionButton 
                         text="No" 
-                        isSelected={selectedExperience === "no"}
-                        onPress={() => setSelectedExperience("no")}
+                        isSelected={selectedExperience === false}
+                        onPress={() => setSelectedExperience(false)}
                     />
                 </View>
                       
             </View>
 
         <View style={styles.continueButton}>
-            <DefButton text="Continue" onPress={() => router.push('/(tabs)/home')} />
+            <DefButton text="Continue" onPress={() => handleContinue()} />
         </View>
         </SafeAreaView>
   )
@@ -159,4 +221,8 @@ const styles = StyleSheet.create({
 })
 
 export default UserStats
+
+
+
+
 
