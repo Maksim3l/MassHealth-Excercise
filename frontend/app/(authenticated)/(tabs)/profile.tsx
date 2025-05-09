@@ -1,15 +1,57 @@
-import { View, Text, SafeAreaView, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import React from 'react';
+import { View, Text, SafeAreaView, Image, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import { Dimensions } from 'react-native';
 import ProfileIcon from '../../../assets/tsxicons/profilenavbaricon';
 import SaveIcon from '../../../assets/tsxicons/saveicon';
 import LogoutIcon from '../../../assets/tsxicons/logout';
+import { supabase } from '../../../utils/supabase';
+import { router } from 'expo-router';
 
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height;
 
+async function signOut() {
+  const { error } = await supabase.auth.signOut()
+
+  if (error) {
+    Alert.alert('Error', error.message)
+  } else {
+    router.replace('../../login')
+  }
+}
+
+
 const Profile = () => {
+  const [profile, setProfile] = useState({ name: '', username: '' });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError) {
+        Alert.alert('Error', userError.message);
+        return;
+      }
+
+      if (user) {
+        const { data, error } = await supabase
+          .from('User_Metadata')
+          .select('name, username')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          Alert.alert('Error', error.message);
+        } else {
+          setProfile({ name: data.name, username: data.username });
+        }
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.sectionTitle}>
@@ -24,8 +66,8 @@ const Profile = () => {
             style={styles.image}
           />
         </View>
-        <Text style={styles.nameofuser}>Isabel Roberts</Text>
-        <Text style={styles.username}>isabell_roberts</Text>
+        <Text style={styles.nameofuser}>{profile.name }</Text>
+        <Text style={styles.username}>{profile.username}</Text>
 
 
       </View>
@@ -41,11 +83,11 @@ const Profile = () => {
       </View>
       <View style={styles.subsectiontitle}>
         <Text style={styles.subsectiontitletext}>Perferences</Text>
-        <TouchableOpacity style={styles.option}>
-        <LogoutIcon stroke="#6E49EB" strokeWidth={18} width={24} height={24} fillColor="none" />
-        <View style={styles.optiontitle}>
-          <Text style={styles.optiontext}>Logout</Text>
-          </View>
+        <TouchableOpacity style={styles.option} onPress={signOut}>
+          <LogoutIcon stroke="#6E49EB" strokeWidth={18} width={24} height={24} fillColor="none" />
+          <View style={styles.optiontitle}>
+            <Text style={styles.optiontext}>Logout</Text>
+            </View>
         </TouchableOpacity>
       </View>
 

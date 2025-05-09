@@ -8,7 +8,7 @@
     "icon": "./assets/icon.png",
     "plugins": [
       "expo-router",
-      "expo-build-properties"
+      "expo-asset"
     ],
     "userInterfaceStyle": "light",
     "newArchEnabled": true,

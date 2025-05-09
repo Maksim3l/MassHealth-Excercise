@@ -1,21 +1,44 @@
 
 
 
-import { View, Text, StyleSheet, Button, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, Button, TouchableOpacity, Alert } from 'react-native'
 import { router, Router } from 'expo-router'
 import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GoogleButton from '../components/googlebutton';
 import Input from '../components/input';
 import DefButton from '../components/button';
+import { supabase } from '../utils/supabase';
 
 
 
 const login = () => {
 
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false)
 
+  async function signInWIthEmail() {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+  
+      if (error) {
+        Alert.alert(error.message);
+        return; 
+      }
+      
+      router.replace('/(authenticated)/(tabs)/home');
+      
+    } catch (error) {
+      Alert.alert('Login error', 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }
   return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container2}>
@@ -34,9 +57,10 @@ const login = () => {
         <View style={{flex: 1, height: 1, backgroundColor: 'black', margin: 10}} />
         </View>
         <Input
-          placeholder='Username'
-          value={username}
-          onChangeText={setUsername}
+          placeholder='Email'
+          inputMode='email'
+          value={email}
+          onChangeText={setEmail}
            >
         </Input>
         <Input
@@ -47,7 +71,7 @@ const login = () => {
            >
         </Input>
         <DefButton
-            onPress={() => router.push('/(authenticated)/tags')}
+            onPress={() => signInWIthEmail()}
             text="Log in!"  />
         <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Not registered yet!? </Text>
