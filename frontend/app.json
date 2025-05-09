@@ -6,9 +6,13 @@
     "scheme": "masshealthexercise",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "expo-build-properties"
+    ],
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "sdkVersion": "52.0.0",
     "assetBundlePatterns": [
       "assets/*"
     ],
@@ -24,12 +28,12 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.thecoffeeaddict.MassHealthExercise"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
-
     }
   }
 }

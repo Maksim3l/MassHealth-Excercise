@@ -151,8 +151,11 @@ def parse_exercise_page(url):
     image_urls = get_all_images()
     
     # Compile all data using the new function to extract list item values
+    raw_name = get_text("h1")
+    cleaned_name = raw_name.removesuffix(" Video Exercise Guide")
+
     exercise_data = {
-        "name": get_text("h1"),
+        "name": cleaned_name,
         "primary_muscle": get_list_item_value("Target Muscle Group"),
         "secondary_muscles": get_list_item_value("Secondary Muscles"),
         "equipment": get_list_item_value("Equipment Required"),
