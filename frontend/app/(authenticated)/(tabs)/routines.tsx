@@ -10,6 +10,8 @@ import CreateRoutineButton from '../../../components/createRoutineButton';
 import Routinebutton from '../../../components/routinebutton';
 import RoutinePlaceholder from '../../../components/routinePlaceholder';
 import * as Location from 'expo-location';
+import * as Paho from 'paho-mqtt'
+
 
 const leafletHtml = `
 <!DOCTYPE html>
@@ -223,6 +225,33 @@ const Routines: React.FC = () => {
       `);
     }
   }, [userLocation, isLoading]);
+
+
+  useEffect(() => {
+    const client = global.mqttClient;
+
+    if (client && client.isConnected() && userLocation && !isLoading) {
+      try{
+        const locationMessage = {
+          userId: global.userId,
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          timestamp: new Date().toISOString()
+        }
+
+        const message = new Paho.Message(JSON.stringify(locationMessage));
+        message.destinationName = 'user/locations';
+        message.qos = 0;
+        message.retained = false
+
+        client.send(message);
+        console.log('Location published via MQTT');
+
+      } catch(error){
+        console.error('Error publishing location via MQTT', error)
+      }
+    }
+  }, [userLocation, isLoading] )
   
   const navigateToMap = () => {
     router.push('../map');
@@ -303,6 +332,8 @@ const Routines: React.FC = () => {
       `);
     }
   };
+
+
   
   return (
     <SafeAreaView style={styles.container}>

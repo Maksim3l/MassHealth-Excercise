@@ -7,17 +7,33 @@ import GoogleButton from '../components/googlebutton'
 import Input from '../components/input'
 import DefButton from '../components/button'
 import { supabase } from '../utils/supabase'
+import * as Paho from 'paho-mqtt'
+
 
 const login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(true) // Start with loading true to check session
   const [showReset, setShowReset] = useState(false)
+  const [mqttClient, setMqttClient] = useState<Paho.Client | null>(null)
 
   // On component mount, check if there's an existing session and redirect if found
   useEffect(() => {
     checkExistingSession()
   }, [])
+
+  // Cleanup MQTT client when component unmounts
+  useEffect(() => {
+    return () => {
+      if(mqttClient && mqttClient.isConnected()) {
+        try {
+          mqttClient.disconnect()
+        } catch(e){
+          console.error("Error disconnecting MQTT:", e)
+        }
+      }
+    }
+  }, [mqttClient])
 
   // Check if a valid session exists and redirect if it does
   async function checkExistingSession() {
@@ -63,7 +79,7 @@ const login = () => {
       //console.log("Signing out and clearing tokens...")
       
       // Sign out first
-      await supabase.auth.signOut()
+      await supabase.auth.signOut({ scope: 'global' })
       
       // Clear local storage tokens
       await AsyncStorage.removeItem('supabase.auth.token')
@@ -127,8 +143,61 @@ const login = () => {
       
       // Successfully logged in
       console.log("Login successful!")
-      router.replace('/(authenticated)/(tabs)/home')
       
+      try {
+        // Create Paho MQTT client
+        const clientId = `user_${data.user.id}_${Math.random().toString(16).substr(2, 8)}`
+        // Save clientId as a global variable
+        const client = new Paho.Client('192.168.1.45', 9001, clientId)
+        
+        // Set up callbacks
+        client.onConnectionLost = (responseObject: Paho.MQTTError) => {
+          if (responseObject.errorCode !== 0) {
+            console.log("Connection lost:", responseObject.errorMessage)
+          }
+        }
+        
+        client.onMessageArrived = (message: Paho.Message) => {
+          console.log("Message received:", message.destinationName, message.payloadString)
+        }
+        
+        // Connect to the broker
+        client.connect({
+          onSuccess: () => {
+            console.log("Connected to MQTT broker")
+            setMqttClient(client)
+            global.userId = data.user.id
+            global.mqttClient = client
+            
+            // Subscribe to topics
+            client.subscribe('user/locations', { qos: 0 })
+            
+            // Publish connection message
+            const connectMessage = {
+              userId: data.user.id,
+              status: 'online',
+              timestamp: new Date().toISOString()
+            }
+            
+            // Create a message
+            const mqttMessage = new Paho.Message(JSON.stringify(connectMessage))
+            mqttMessage.destinationName = 'user/status'
+            mqttMessage.qos = 0
+            mqttMessage.retained = false
+            
+            // Send the message
+            client.send(mqttMessage)
+          },
+          onFailure: (err: any) => {
+            console.error("MQTT connection failed:", err)
+          },
+          useSSL: false // Change to true if using SSL
+        })
+      } catch (mqttError) {
+        console.error("MQTT setup error:", mqttError)
+      }
+      
+      router.replace('/(authenticated)/(tabs)/home')
     } catch (error) {
       console.error("Exception during login:", error)
       Alert.alert('Login error', 'An unexpected error occurred')
@@ -222,6 +291,7 @@ const login = () => {
       </SafeAreaView>
     )
   }
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
