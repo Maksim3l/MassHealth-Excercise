@@ -127,30 +127,30 @@ def main():
                 secondary_muscles = [secondary_muscles]  # Convert string to list if needed
             
             primary_muscle_ids = [
-                get_or_create("muscles", "name", muscle) for muscle in primary_muscles if muscle
+                get_or_create("Muscles", "name", muscle) for muscle in primary_muscles if muscle
             ]
             primary_muscle_ids = [id for id in primary_muscle_ids if id is not None]
             
             secondary_muscle_ids = [
-                get_or_create("muscles", "name", muscle) for muscle in secondary_muscles if muscle
+                get_or_create("Muscles", "name", muscle) for muscle in secondary_muscles if muscle
             ]
             secondary_muscle_ids = [id for id in secondary_muscle_ids if id is not None]
             
-            equipment_id = get_or_create("equipment", "name", exercise.get("equipment"))
-            experience_level_id = get_or_create("experience_levels", "name", exercise.get("experience_level"))
-            mechanics_type_id = get_or_create("mechanics_types", "name", exercise.get("mechanics_type"))
-            force_type_id = get_or_create("force_types", "name", exercise.get("force_type"))
-            exercise_type_id = get_or_create("exercise_types", "name", exercise.get("exercise_type"))
+            equipment_id = get_or_create("Equipment", "name", exercise.get("equipment"))
+            experience_level_id = get_or_create("Experience_levels", "name", exercise.get("experience_level"))
+            mechanics_type_id = get_or_create("Mechanics_types", "name", exercise.get("mechanics_type"))
+            force_type_id = get_or_create("Force_types", "name", exercise.get("force_type"))
+            exercise_type_id = get_or_create("Exercise_types", "name", exercise.get("exercise_type"))
             
             # Insert the exercise into the exercises table
             exercise_data = {
                 "name": exercise_name,
                 "primary_muscle": exercise.get("primary_muscle"),
-                "equipment": equipment_id,
-                "experience_level": experience_level_id,
-                "mechanics_type": mechanics_type_id,
-                "force_type": force_type_id,
-                "exercise_type": exercise_type_id,
+                "equipment_id": equipment_id,               # Changed from equipment
+                "experience_level_id": experience_level_id, # Changed to include _id
+                "mechanics_type_id": mechanics_type_id,     # Changed to include _id
+                "force_type_id": force_type_id,            # Changed to include _id
+                "exercise_type_id": exercise_type_id,      # Changed to include _id
                 "overview": exercise.get("overview"),
                 "instructions": exercise.get("instructions"),
                 "tips": exercise.get("tips"),
@@ -167,7 +167,8 @@ def main():
                 print(f"Skipping exercise #{i+1} - missing name")
                 continue
             
-            response = supabase.table("exercises").insert(exercise_data).execute()
+            # Update the table names to match exactly
+            response = supabase.table("Exercises").insert(exercise_data).execute()
             
             if not response.data:
                 print(f"Warning: No data returned when inserting {exercise_name}")
@@ -178,7 +179,7 @@ def main():
             # Insert into the exercise_muscles table
             for muscle_id in primary_muscle_ids:
                 try:
-                    supabase.table("exercise_muscles").insert({
+                    supabase.table("Exercise_muscles").insert({
                         "exercise_id": exercise_id,
                         "muscle_id": muscle_id,
                         "is_primary": True
@@ -188,7 +189,7 @@ def main():
             
             for muscle_id in secondary_muscle_ids:
                 try:
-                    supabase.table("exercise_muscles").insert({
+                    supabase.table("Exercise_muscles").insert({
                         "exercise_id": exercise_id,
                         "muscle_id": muscle_id,
                         "is_primary": False
