@@ -1,14 +1,63 @@
 function Get-IPAddress {
-    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
-    foreach ($adapter in $adapters) {
-        $ipAddresses = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4
-        foreach ($ip in $ipAddresses) {
-            if ($ip.IPAddress -ne "127.0.0.1") {
-                return $ip.IPAddress
+    $ipv4_address = $null
+    $ipconfig_output = ipconfig /all
+    
+    $wifi_section = $ipconfig_output | Select-String -Pattern "Wireless LAN adapter WiFi:" -Context 0,20 -SimpleMatch
+    if ($wifi_section) {
+        $ipv4_line = $wifi_section.Context.PostContext | Select-String -Pattern "IPv4 Address"
+        if ($ipv4_line) {
+            $ipv4_address = ($ipv4_line -split ":")[-1].Trim()
+            $ipv4_address = $ipv4_address -replace "\(Preferred\)", ""
+            $ipv4_address = $ipv4_address.Trim()
+        }
+    }
+    
+    if (-not $ipv4_address) {
+        $wireless_sections = $ipconfig_output | Select-String -Pattern "Wireless LAN adapter" -Context 0,20
+        foreach ($section in $wireless_sections) {
+            if ($section -match "VPN") { continue }
+            
+            $ipv4_line = $section.Context.PostContext | Select-String -Pattern "IPv4 Address"
+            if ($ipv4_line) {
+                $ipv4_address = ($ipv4_line -split ":")[-1].Trim()
+                $ipv4_address = $ipv4_address -replace "\(Preferred\)", ""
+                $ipv4_address = $ipv4_address.Trim()
+                break 
             }
         }
     }
-    return $null
+
+    if (-not $ipv4_address) {
+        $ethernet_sections = $ipconfig_output | Select-String -Pattern "Ethernet adapter" -Context 0,20
+        foreach ($section in $ethernet_sections) {
+            if ($section -match "VPN|Virtual|Radmin") { continue }
+            
+            $ipv4_line = $section.Context.PostContext | Select-String -Pattern "IPv4 Address"
+            if ($ipv4_line) {
+                $ipv4_address = ($ipv4_line -split ":")[-1].Trim()
+                $ipv4_address = $ipv4_address -replace "\(Preferred\)", ""
+                $ipv4_address = $ipv4_address.Trim()
+                break  
+            }
+        }
+    }
+    
+    if (-not $ipv4_address) {
+        $all_sections = $ipconfig_output | Select-String -Pattern "adapter" -Context 0,20
+        foreach ($section in $all_sections) {
+            if ($section -match "VPN|Virtual|Radmin") { continue }
+            
+            $ipv4_line = $section.Context.PostContext | Select-String -Pattern "IPv4 Address"
+            if ($ipv4_line) {
+                $ipv4_address = ($ipv4_line -split ":")[-1].Trim()
+                $ipv4_address = $ipv4_address -replace "\(Preferred\)", ""
+                $ipv4_address = $ipv4_address.Trim()
+                break 
+            }
+        }
+    }
+    
+    return $ipv4_address
 }
 
 function Backup-Database {

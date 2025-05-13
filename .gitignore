@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+venv/
 
 # Expo
 .expo/
@@ -34,6 +35,3 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-
-# Supabase
-backend/supabase
