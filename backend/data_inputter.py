@@ -29,6 +29,14 @@ def check_dependencies():
                 print(f"Failed to install {package}. Please install it manually.")
                 sys.exit(1)
 
+# Add this helper function after the imports
+def normalize_name(value):
+    """Ensure first letter is capitalized for all input values."""
+    if not value:
+        return None
+    # Handle hyphenated words (like "push-ups")
+    return '-'.join(word.capitalize() for word in value.split('-'))
+
 def main():
     """Main function to run the exercise data inputter."""
     import psycopg2
@@ -86,24 +94,27 @@ def main():
             print(f"Error: Could not decode the file at {json_path}")
             sys.exit(1)
     
-    # Helper function to insert unique values into a table and return the ID
+    # Modify the get_or_create function to use normalize_name
     def get_or_create(table_name, column_name, value):
         if value is None or value == "":
             return None
         
+        # Normalize the value before querying or inserting
+        normalized_value = normalize_name(value)
+        
         try:
-            response = supabase.table(table_name).select("id").eq(column_name, value).execute()
+            response = supabase.table(table_name).select("id").eq(column_name, normalized_value).execute()
             if response.data:
                 return response.data[0]["id"]
             else:
-                insert_response = supabase.table(table_name).insert({column_name: value}).execute()
+                insert_response = supabase.table(table_name).insert({column_name: normalized_value}).execute()
                 if insert_response.data:
                     return insert_response.data[0]["id"]
                 else:
-                    print(f"Warning: Failed to insert {value} into {table_name}")
+                    print(f"Warning: Failed to insert {normalized_value} into {table_name}")
                     return None
         except Exception as e:
-            print(f"Error in get_or_create for {table_name}.{column_name}={value}: {str(e)}")
+            print(f"Error in get_or_create for {table_name}.{column_name}={normalized_value}: {str(e)}")
             return None
     
     # Push each exercise to Supabase
@@ -144,13 +155,12 @@ def main():
             
             # Insert the exercise into the exercises table
             exercise_data = {
-                "name": exercise_name,
-                "primary_muscle": exercise.get("primary_muscle"),
-                "equipment_id": equipment_id,               # Changed from equipment
-                "experience_level_id": experience_level_id, # Changed to include _id
-                "mechanics_type_id": mechanics_type_id,     # Changed to include _id
-                "force_type_id": force_type_id,            # Changed to include _id
-                "exercise_type_id": exercise_type_id,      # Changed to include _id
+                "name": normalize_name(exercise_name),
+                "equipment_id": equipment_id,
+                "experience_level_id": experience_level_id,
+                "mechanics_type_id": mechanics_type_id,
+                "force_type_id": force_type_id,
+                "exercise_type_id": exercise_type_id,
                 "overview": exercise.get("overview"),
                 "instructions": exercise.get("instructions"),
                 "tips": exercise.get("tips"),
@@ -179,7 +189,7 @@ def main():
             # Insert into the exercise_muscles table
             for muscle_id in primary_muscle_ids:
                 try:
-                    supabase.table("Exercise_muscles").insert({
+                    supabase.table("Exercise_Muscles").insert({
                         "exercise_id": exercise_id,
                         "muscle_id": muscle_id,
                         "is_primary": True
@@ -189,7 +199,7 @@ def main():
             
             for muscle_id in secondary_muscle_ids:
                 try:
-                    supabase.table("Exercise_muscles").insert({
+                    supabase.table("Exercise_Muscles").insert({
                         "exercise_id": exercise_id,
                         "muscle_id": muscle_id,
                         "is_primary": False
