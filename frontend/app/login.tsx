@@ -1,14 +1,13 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native' 
-import { router } from 'expo-router' 
-import React, { useState, useEffect } from 'react' 
-import { SafeAreaView } from 'react-native-safe-area-context'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import GoogleButton from '../components/googlebutton'
-import Input from '../components/input'
-import DefButton from '../components/button'
-import { supabase } from '../utils/supabase'
-import * as Paho from 'paho-mqtt'
-
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native'; 
+import { router } from 'expo-router'; 
+import React, { useState, useEffect } from 'react'; 
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import GoogleButton from '../components/googlebutton';
+import Input from '../components/input';
+import DefButton from '../components/button';
+import { supabase } from '../utils/supabase';
+import * as Paho from 'paho-mqtt';
 
 const login = () => {
   const [email, setEmail] = useState('')
@@ -19,7 +18,7 @@ const login = () => {
 
   // On component mount, check if there's an existing session and redirect if found
   useEffect(() => {
-    checkExistingSession()
+    checkExistingSession();
   }, [])
 
   // Cleanup MQTT client when component unmounts
@@ -27,7 +26,27 @@ const login = () => {
     return () => {
       if(mqttClient && mqttClient.isConnected()) {
         try {
-          mqttClient.disconnect()
+          // Send offline status before disconnecting
+          if (global.userId) {
+            const offlineMessage = {
+              userId: global.userId,
+              username: global.username || 'anonymous',
+              status: 'offline',
+              timestamp: new Date().toISOString()
+            };
+            
+            const presenceMessage = new Paho.Message(JSON.stringify(offlineMessage));
+            presenceMessage.destinationName = `users/${global.userId}/presence`;
+            presenceMessage.qos = 0;
+            presenceMessage.retained = true;
+            
+            mqttClient.send(presenceMessage);
+            console.log('Published offline presence message');
+          }
+          
+          // Disconnect MQTT
+          mqttClient.disconnect();
+          console.log('Disconnected from MQTT broker');
         } catch(e){
           console.error("Error disconnecting MQTT:", e)
         }
@@ -143,119 +162,161 @@ const login = () => {
       
       // Successfully logged in
       console.log("Login successful!")
+
+      // Fetch and set username
+      try {
+        const { data: userData, error: usernameError } = await supabase
+          .from('User_Metadata')
+          .select('username')
+          .single();
+          
+        let safeUsername;
+        if (usernameError) {
+          console.error("Error fetching username:", usernameError.message);
+          // Create a fallback username based on user ID
+          safeUsername = `user-${data.user.id.substring(0, 8)}`;
+        } else {
+          // Successfully fetched username
+          safeUsername = userData?.username || `user-${data.user.id.substring(0, 8)}`;
+        }
+        
+        // Store user data in AsyncStorage
+        await AsyncStorage.setItem('userId', data.user.id);
+        await AsyncStorage.setItem('username', safeUsername);
+        
+        // Set global variables
+        global.username = safeUsername;
+        global.userId = data.user.id;
+        
+        console.log("Set and persisted username:", safeUsername);
+      } catch (err) {
+        console.error("Unexpected error handling user data:", err);
+        // Use fallback username
+        const safeUsername = `user-${data.user.id.substring(0, 8)}`;
+        global.username = safeUsername;
+        global.userId = data.user.id;
+        
+        // Still try to persist even in error case
+        try {
+          await AsyncStorage.setItem('userId', data.user.id);
+          await AsyncStorage.setItem('username', safeUsername);
+        } catch (storageError) {
+          console.error("Error storing user data:", storageError);
+        }
+      }
       
       try {
-        // Create Paho MQTT client
-        const clientId = `user_${data.user.id}_${Math.random().toString(16).substr(2, 8)}`
-        // Save clientId as a global variable
-        const client = new Paho.Client('192.168.1.45', 9001, clientId)
+        // Create Paho MQTT client with unique client ID
+        const clientId = `user_${data.user.id}_${Math.random().toString(16).substr(2, 8)}`;
+        const client = new Paho.Client('192.168.1.45', 9001, clientId);
         
         // Set up callbacks
         client.onConnectionLost = (responseObject: Paho.MQTTError) => {
           if (responseObject.errorCode !== 0) {
-            console.log("Connection lost:", responseObject.errorMessage)
+            console.log("Connection lost:", responseObject.errorMessage);
           }
-        }
+        };
         
         client.onMessageArrived = (message: Paho.Message) => {
-          console.log("Message received:", message.destinationName, message.payloadString)
-        }
+          console.log("Message received:", message.destinationName, message.payloadString);
+        };
         
         // Connect to the broker
         client.connect({
           onSuccess: () => {
-            console.log("Connected to MQTT broker")
-            setMqttClient(client)
-            global.userId = data.user.id
-            global.mqttClient = client
+            console.log("Connected to MQTT broker with client ID:", clientId);
+            setMqttClient(client);
+            global.mqttClient = client;
             
-            // Subscribe to topics
-            client.subscribe('user/locations', { qos: 0 })
+            // Subscribe to all user location topics
+            client.subscribe('users/+/location', { qos: 0 });
+            console.log('Subscribed to all user locations');
             
-            // Publish connection message
+            // Publish presence message
             const connectMessage = {
               userId: data.user.id,
+              username: global.username,
               status: 'online',
               timestamp: new Date().toISOString()
-            }
+            };
             
-            // Create a message
-            const mqttMessage = new Paho.Message(JSON.stringify(connectMessage))
-            mqttMessage.destinationName = 'user/status'
-            mqttMessage.qos = 0
-            mqttMessage.retained = false
+            // Create and send presence message with retained flag
+            const presenceMessage = new Paho.Message(JSON.stringify(connectMessage));
+            presenceMessage.destinationName = `users/${data.user.id}/presence`;
+            presenceMessage.qos = 0;
+            presenceMessage.retained = true;
             
-            // Send the message
-            client.send(mqttMessage)
+            client.send(presenceMessage);
+            console.log('Published presence message');
           },
           onFailure: (err: any) => {
-            console.error("MQTT connection failed:", err)
+            console.error("MQTT connection failed:", err);
           },
           useSSL: false // Change to true if using SSL
-        })
+        });
       } catch (mqttError) {
-        console.error("MQTT setup error:", mqttError)
+        console.error("MQTT setup error:", mqttError);
       }
       
-      router.replace('/(authenticated)/(tabs)/home')
+      router.replace('/(authenticated)/(tabs)/home');
     } catch (error) {
-      console.error("Exception during login:", error)
-      Alert.alert('Login error', 'An unexpected error occurred')
+      console.error("Exception during login:", error);
+      Alert.alert('Login error', 'An unexpected error occurred');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   // Magic link login as an alternative
   async function sendMagicLink() {
     if (!email) {
-      Alert.alert("Email Required", "Please enter your email address")
-      return
+      Alert.alert("Email Required", "Please enter your email address");
+      return;
     }
     
-    setLoading(true)
+    setLoading(true);
     try {
-      console.log("Sending magic link to:", email)
+      console.log("Sending magic link to:", email);
       
       const { data, error } = await supabase.auth.signInWithOtp({
         email: email
-      })
+      });
       
       if (error) {
-        console.error("Magic link error:", error)
-        Alert.alert("Error", error.message)
-        return
+        console.error("Magic link error:", error);
+        Alert.alert("Error", error.message);
+        return;
       }
       
       Alert.alert(
         "Check Your Email", 
         `We've sent a login link to ${email}. Click it to sign in.`
-      )
+      );
     } catch (err) {
-      console.error("Exception sending magic link:", err)
-      Alert.alert("Error", "Failed to send login link")
+      console.error("Exception sending magic link:", err);
+      Alert.alert("Error", "Failed to send login link");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   // Handle token reset for when we hit token conflicts
   async function handleResetTokens() {
-    setLoading(true)
+    setLoading(true);
     try {
-      console.log("Attempting to reset user tokens...")
+      console.log("Attempting to reset user tokens...");
       
       // Clear the session since we need to reset
-      await prepareForLogin()
+      await prepareForLogin();
       
       // Try login again
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
-      })
+      });
       
       if (error) {
-        console.error("Login still failed after reset:", error)
+        console.error("Login still failed after reset:", error);
         
         // Fall back to magic link
         Alert.alert(
@@ -265,19 +326,57 @@ const login = () => {
             { text: "Use Magic Link", onPress: sendMagicLink },
             { text: "Cancel" }
           ]
-        )
-        return
+        );
+        return;
       }
       
       // Successfully logged in
-      console.log("Login successful after token reset!")
-      router.replace('/(authenticated)/(tabs)/home')
+      console.log("Login successful after token reset!");
+      router.replace('/(authenticated)/(tabs)/home');
       
     } catch (err) {
-      console.error("Error during token reset:", err)
-      Alert.alert("Error", "Failed to reset your session. Please try the magic link option.")
+      console.error("Error during token reset:", err);
+      Alert.alert("Error", "Failed to reset your session. Please try the magic link option.");
     } finally {
-      setLoading(false)
+      setLoading(false);
+    }
+  }
+
+  // Function to handle sign out (call this when user logs out)
+  async function signOut() {
+    try {
+      // Send offline status
+      if (mqttClient && mqttClient.isConnected() && global.userId) {
+        const offlineMessage = {
+          userId: global.userId,
+          username: global.username,
+          status: 'offline',
+          timestamp: new Date().toISOString()
+        };
+        
+        const presenceMessage = new Paho.Message(JSON.stringify(offlineMessage));
+        presenceMessage.destinationName = `users/${global.userId}/presence`;
+        presenceMessage.qos = 0;
+        presenceMessage.retained = true;
+        
+        mqttClient.send(presenceMessage);
+        mqttClient.disconnect();
+      }
+      
+      // Clear AsyncStorage
+      await AsyncStorage.removeItem('userId');
+      await AsyncStorage.removeItem('username');
+      
+      // Clear global variables
+      global.userId = null;
+      global.username = null;
+      global.mqttClient = null;
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      router.replace('/login');
+    } catch (err) {
+      console.error("Error during sign out:", err);
     }
   }
 
@@ -289,9 +388,8 @@ const login = () => {
           <Text style={styles.loadingText}>Checking login status...</Text>
         </View>
       </SafeAreaView>
-    )
+    );
   }
-
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -346,8 +444,8 @@ const login = () => {
         </View>
       </View>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -389,6 +487,6 @@ const styles = StyleSheet.create({
     color: '#8a2be2',
     fontWeight: '500'
   }
-})
+});
 
-export default login
+export default login;

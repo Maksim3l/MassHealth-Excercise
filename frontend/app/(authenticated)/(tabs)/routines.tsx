@@ -10,8 +10,8 @@ import CreateRoutineButton from '../../../components/createRoutineButton';
 import Routinebutton from '../../../components/routinebutton';
 import RoutinePlaceholder from '../../../components/routinePlaceholder';
 import * as Location from 'expo-location';
-import * as Paho from 'paho-mqtt'
-
+import * as Paho from 'paho-mqtt';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const leafletHtml = `
 <!DOCTYPE html>
@@ -30,6 +30,26 @@ const leafletHtml = `
       border: 2px solid white;
       box-shadow: 0 0 3px rgba(0,0,0,0.3);
     }
+    .other-user-marker {
+      border-radius: 50%;
+      width: 10px;
+      height: 10px;
+      background-color: #FF5252;
+      border: 2px solid white;
+      box-shadow: 0 0 3px rgba(0,0,0,0.3);
+    }
+    .marker-label {
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-size: 10px;
+      white-space: nowrap;
+      text-align: center;
+      transform: translateX(-50%);
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+    }
   </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -38,7 +58,8 @@ const leafletHtml = `
   <div id="map"></div>
   <script>
     const map = L.map('map');
-    let markers = [];
+    // Change markers from array to object to track by userId
+    let markers = {};
     let userMarker = null;
     
     window.addEventListener('message', function(event) {
@@ -56,17 +77,47 @@ const leafletHtml = `
         }
         
         if (message.type === 'markers') {
-          // Clear existing markers
-          markers.forEach(marker => map.removeLayer(marker));
-          markers = [];
+          // Get array of userIds in the new payload
+          const newUserIds = message.payload.map(m => m.userId || 'default');
           
-          // Add new markers
-          message.payload.forEach(markerData => {
-            const marker = L.marker([markerData.lat, markerData.lng]).addTo(map);
-            if (markerData.icon) {
-              marker.setIcon(L.icon(markerData.icon));
+          // Get array of existing userIds
+          const existingUserIds = Object.keys(markers);
+          
+          // Remove markers not in new payload
+          existingUserIds.forEach(id => {
+            if (!newUserIds.includes(id)) {
+              map.removeLayer(markers[id]);
+              delete markers[id];
             }
-            markers.push(marker);
+          });
+          
+          // Add/update markers
+          message.payload.forEach(markerData => {
+            const userId = markerData.userId || 'default';
+            const username = markerData.username || 'Unknown';
+            
+            // Create icon for other users
+            let markerIcon;
+            if (markerData.icon) {
+              markerIcon = L.divIcon({
+                className: markerData.icon.className || 'other-user-marker',
+                iconSize: markerData.icon.iconSize || [10, 10],
+                iconAnchor: markerData.icon.iconAnchor || [5, 5],
+                html: \`<div class="marker-icon"></div><div class="marker-label">\${username}</div>\`              });
+            }
+            
+            if (markers[userId]) {
+              // Update existing marker
+              markers[userId].setLatLng([markerData.lat, markerData.lng]);
+              if (markerIcon) {
+                markers[userId].setIcon(markerIcon);
+              }
+            } else {
+              // Create new marker
+              markers[userId] = L.marker([markerData.lat, markerData.lng], {
+                icon: markerIcon
+              }).addTo(map);
+            }
           });
         }
         
@@ -121,6 +172,42 @@ const Routines: React.FC = () => {
     { latitude: 46.2382, longitude: 14.3555 }, // Kranj
     { latitude: 45.5475, longitude: 13.7304 }  // Koper
   ];
+
+  const restoreUserData = async () => {
+  try {
+    const userId = await AsyncStorage.getItem('userId');
+    const username = await AsyncStorage.getItem('username');
+    
+    if (userId) global.userId = userId;
+    if (username) global.username = username;
+    
+    console.log('Restored user data:', { userId, username });
+  } catch (error) {
+    console.error('Error restoring user data', error);
+  }
+};
+
+  // State for tracking other users' locations
+  const [otherUserLocations, setOtherUserLocations] = useState<Array<{
+    userId: string,
+    username?: string,
+    latitude: number,
+    longitude: number,
+    timestamp: string
+  }>>([]);
+  
+  // State for tracking when we last saw each user
+  const [lastSeenTimes, setLastSeenTimes] = useState<{[userId: string]: number}>({});
+  
+  // Debug effect to check global variables
+  useEffect(() => {
+    console.log("Global variables check:", {
+      userId: global.userId, 
+      username: global.username,
+      mqttConnected: global.mqttClient?.isConnected() 
+    });
+    restoreUserData();
+  }, []);
   
   // Fetch user location
   useEffect(() => {
@@ -170,8 +257,8 @@ const Routines: React.FC = () => {
         locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
-            timeInterval: 300000,    // Update every 5 minuten
-            distanceInterval: 70,  // Update if moved 100 meters 
+            timeInterval: 300000,    // Update every 5 minutes
+            distanceInterval: 70,    // Update if moved 70 meters 
           },
           (newLocation) => {
             if (isMounted) {
@@ -213,8 +300,8 @@ const Routines: React.FC = () => {
             payload: {
               lat: ${userLocation.latitude},
               lng: ${userLocation.longitude},
-              center: true, // Add this line to center the map
-              zoom: 13 // You can adjust zoom level as needed
+              center: true,
+              zoom: 13
             }
           }));
           true;
@@ -226,32 +313,185 @@ const Routines: React.FC = () => {
     }
   }, [userLocation, isLoading]);
 
-
+  // Publish location updates via MQTT
   useEffect(() => {
     const client = global.mqttClient;
 
     if (client && client.isConnected() && userLocation && !isLoading) {
-      try{
+      try {
+        const safeUsername = global.username || `user-${global.userId?.substring(0, 8)}` || 'anonymous';
+        
         const locationMessage = {
           userId: global.userId,
+          username: safeUsername,
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
           timestamp: new Date().toISOString()
-        }
+        };
 
+        // Use a topic structure that includes the user ID
+        const topic = `users/${global.userId}/location`;
+        
         const message = new Paho.Message(JSON.stringify(locationMessage));
-        message.destinationName = 'user/locations';
+        message.destinationName = topic;
         message.qos = 0;
-        message.retained = false
+        message.retained = true; // Important: retain the message
 
         client.send(message);
-        console.log('Location published via MQTT');
-
-      } catch(error){
-        console.error('Error publishing location via MQTT', error)
+        console.log('Location published to:', topic);
+      } catch(error) {
+        console.error('Error publishing location via MQTT', error);
       }
+    } else {
+      console.log("Cannot publish location - MQTT conditions not met:", {
+        clientExists: !!client,
+        isConnected: client?.isConnected(),
+        hasLocation: !!userLocation,
+        notLoading: !isLoading
+      });
     }
-  }, [userLocation, isLoading] )
+  }, [userLocation, isLoading]);
+
+  // Handle incoming MQTT messages
+  useEffect(() => {
+    const client = global.mqttClient;
+
+    if(client && client.isConnected()) {
+      try {
+        // Subscribe to all user location topics
+        client.subscribe('users/+/location', { qos: 0 });
+        console.log('Subscribed to all user locations with wildcard');
+
+        // Create message handler
+        const messageHandler = (message: Paho.Message) => {
+          try {
+            console.log("MQTT message received:", message.destinationName, message.payloadString);
+            const topicParts = message.destinationName.split('/');
+            
+            // Make sure this is a location message
+            if (topicParts[0] === 'users' && topicParts[2] === 'location') {
+              const userId = topicParts[1];
+              const locationData = JSON.parse(message.payloadString);
+              
+              // Skip our own messages
+              if(userId !== global.userId) {
+                const username = locationData.username || 'Unknown User';
+                
+                // Update last seen time for this user
+                setLastSeenTimes(prev => ({
+                  ...prev,
+                  [userId]: new Date().getTime()
+                }));
+                
+                setOtherUserLocations(prevLocations => {
+                  const existingIndex = prevLocations.findIndex(
+                    loc => loc.userId === userId
+                  );
+                  
+                  if (existingIndex !== -1) {
+                    // Update existing user's location
+                    const updatedLocations = [...prevLocations];
+                    updatedLocations[existingIndex] = {
+                      userId,
+                      username,
+                      latitude: locationData.latitude,
+                      longitude: locationData.longitude,
+                      timestamp: locationData.timestamp || new Date().toISOString()
+                    };
+                    return updatedLocations;
+                  } else {
+                    // Add new user location
+                    return [...prevLocations, {
+                      userId,
+                      username,
+                      latitude: locationData.latitude,
+                      longitude: locationData.longitude,
+                      timestamp: locationData.timestamp || new Date().toISOString()
+                    }];
+                  }
+                });
+              }
+            }
+          } catch(e) {
+            console.error('Error processing MQTT message:', e, message.payloadString);
+          }
+        };
+        
+        // Set the message handler
+        client.onMessageArrived = messageHandler;
+      } catch(error) {
+        console.error('Error setting up MQTT message handler:', error);
+      }
+    } else {
+      console.log("Cannot subscribe - MQTT client not ready:", {
+        clientExists: !!client,
+        isConnected: client?.isConnected()
+      });
+    }
+
+    return () => {
+      if(client && client.isConnected()) {
+        client.unsubscribe('users/+/location');
+        console.log('Unsubscribed from user locations');
+      }
+    };
+  }, []);
+
+  // Clean up stale user data
+  useEffect(() => {
+    const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
+    
+    // Set up interval to check for stale data
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      
+      setOtherUserLocations(prevLocations => {
+        return prevLocations.filter(location => {
+          const lastSeen = lastSeenTimes[location.userId] || 0;
+          return (now - lastSeen) < STALE_THRESHOLD;
+        });
+      });
+    }, 12000); // Check every 2 minutes
+    
+    return () => clearInterval(interval);
+  }, [lastSeenTimes]);
+
+  // Update map markers when other users' locations change
+  useEffect(() => {
+    console.log("otherUserLocations changed:", otherUserLocations);
+    
+    if (webViewRef.current && !isLoading && otherUserLocations.length > 0) {
+      // Format markers data for all other users
+      const markersData = otherUserLocations.map(user => ({
+        lat: user.latitude,
+        lng: user.longitude,
+        userId: user.userId,
+        username: user.username || 'User',
+        // Add custom marker for other users
+        icon: {
+          className: 'other-user-marker',
+          iconSize: [15, 15],
+          iconAnchor: [7, 7]
+        }
+      }));
+      
+      console.log("Updating map with markers:", markersData);
+      
+      // Inject markers to map
+      webViewRef.current.injectJavaScript(`
+        try {
+          window.postMessage(JSON.stringify({
+            type: 'markers',
+            payload: ${JSON.stringify(markersData)}
+          }));
+          true;
+        } catch(e) {
+          console.error('Error in updating user markers:', e);
+          true;
+        }
+      `);
+    }
+  }, [otherUserLocations, isLoading]);
   
   const navigateToMap = () => {
     router.push('../map');
@@ -299,15 +539,15 @@ const Routines: React.FC = () => {
         }
       `);
       
-      // Add markers for locations
+      // Add markers for fixed locations
       webViewRef.current.injectJavaScript(`
         try {
           window.postMessage(JSON.stringify({
             type: 'markers',
             payload: [
-              { lat: 46.0569, lng: 14.5058 },
-              { lat: 46.2382, lng: 14.3555 },
-              { lat: 45.5475, lng: 13.7304 }
+              { lat: 46.0569, lng: 14.5058, userId: 'location-1' },
+              { lat: 46.2382, lng: 14.3555, userId: 'location-2' },
+              { lat: 45.5475, lng: 13.7304, userId: 'location-3' }
             ]
           }));
           true;
@@ -330,11 +570,36 @@ const Routines: React.FC = () => {
           true;
         }
       `);
+
+      // Add other user markers if any exist
+      if (otherUserLocations.length > 0) {
+        const markersData = otherUserLocations.map(user => ({
+          lat: user.latitude,
+          lng: user.longitude,
+          userId: user.userId,
+          icon: {
+            className: 'other-user-marker',
+            iconSize: [10, 10],
+            iconAnchor: [5, 5]
+          }
+        }));
+    
+        webViewRef.current.injectJavaScript(`
+          try {
+            window.postMessage(JSON.stringify({
+              type: 'markers',
+              payload: ${JSON.stringify(markersData)}
+            }));
+            true;
+          } catch(e) {
+            console.error('Error in updating user markers:', e);
+            true;
+          }
+        `);
+      }
     }
   };
 
-
-  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -362,10 +627,10 @@ const Routines: React.FC = () => {
             />
           </View>
           
-          {/* Overlay with location text */}
+          {/* Overlay with location text and user count */}
           <View style={styles.mapOverlay}>
             <Text style={styles.mapLocationText}>
-              {city ? `${city} • ` : ''}Ljubljana • Maribor • Celje
+              {otherUserLocations.length > 0 ? ` • ${otherUserLocations.length} other users online` : ''}
             </Text>
           </View>
         </TouchableOpacity>
