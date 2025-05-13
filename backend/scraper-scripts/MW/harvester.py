@@ -36,19 +36,27 @@ class MuscleWikiScraper:
         """Extract numbered step instructions from the page"""
         instructions = []
         
-        steps_container = soup.select_one("dl[class*='my-5'][class*='grid']")
-
-        if not steps_container:
-            steps_container = soup.select_one("dl.my-5, dl.grid")
-            
-        if not steps_container:
-            parent_div = soup.select_one("div.sm\\:pb-5 div.flex.flex-col")
-            if parent_div:
-                steps_container = parent_div.find("dl")
-
+        # Try multiple selector patterns to find the instructions container
+        steps_container = None
+        possible_selectors = [
+            "dl[class*='my-5'][class*='grid']",
+            "dl.my-5",
+            "dl.grid",
+            "dl.space-y-2",
+            "div.sm\\:pb-5 div.flex.flex-col dl"
+        ]
+        
+        for selector in possible_selectors:
+            steps_container = soup.select_one(selector)
+            if steps_container:
+                break
+                
         if steps_container:
             # Look for all divs with the border-gray-200 class that contain the steps
             steps = steps_container.find_all("div", class_="border-gray-200")
+            
+            if not steps:  # Try alternative approach
+                steps = steps_container.find_all("div")
             
             for step in steps:
                 # Extract text from the dd element which contains the instruction
@@ -58,56 +66,93 @@ class MuscleWikiScraper:
                     if step_text:
                         instructions.append(step_text)
         
+        # If no instructions found, try a more generic approach
+        if not instructions:
+            step_elements = soup.select("dl dd")
+            for step in step_elements:
+                step_text = step.get_text(strip=True)
+                if step_text:
+                    instructions.append(step_text)
+
         return instructions
 
     def extract_detailed_instructions(self, soup):
-        """Extract detailed instructions and tips from the bottom section"""
+        """Extract detailed instructions and tips from various layouts"""
         detailed_info = {"instructions": [], "tips": []}
-        
-        # Find the detailed instructions container - more specific selector
-        detailed_div = soup.select_one("div.mb-8.rounded-lg.border.bg-white.py-4")
 
-        if detailed_div:
-            paragraphs = detailed_div.find_all("p", class_="text-left")
+        # Try multiple possible containers
+        containers = [
+            soup.select_one("div.mb-8.rounded-lg.border.bg-white"),
+            soup.select_one("div.rounded-lg.border.bg-white"),
+            soup.select_one("div.mb-8")
+        ]
+        
+        container = next((c for c in containers if c is not None), None)
+
+        if container:
+            instructions = []
+            tips = []
+
+            # Try to find sections by headers
+            sections = {}
+            current_section = None
             
-            # Process the paragraphs
-            in_tips_section = False
-            in_instructions_section = False
+            for elem in container.find_all(['h2', 'h3', 'p']):
+                if elem.name in ['h2', 'h3']:
+                    text = elem.get_text(strip=True).lower()
+                    if 'how to' in text or 'instruction' in text:
+                        current_section = 'instructions'
+                    elif 'tip' in text or 'advice' in text:
+                        current_section = 'tips'
+                    else:
+                        current_section = text  # Use header text as section name
+                        
+                    # Initialize the section if it doesn't exist
+                    if current_section not in sections:
+                        sections[current_section] = []
+                        
+                elif elem.name == 'p' and current_section:
+                    text = elem.get_text(strip=True)
+                    if text:
+                        sections[current_section].append(text)
             
-            for p in paragraphs:
-                text = p.get_text(strip=True)
+            # Map sections to our expected output
+            for section, texts in sections.items():
+                if section == 'instructions' or 'how to' in section:
+                    detailed_info["instructions"].extend(texts)
+                elif section == 'tips' or 'tip' in section:
+                    detailed_info["tips"].extend(texts)
+        
+        # Fallback: if no structured sections found, try to extract paragraphs
+        if not detailed_info["instructions"] and not detailed_info["tips"]:
+            all_paragraphs = soup.find_all("p", class_="text-left")
+            if not all_paragraphs:
+                all_paragraphs = soup.find_all("p")
                 
+            in_instructions = False
+            in_tips = False
+            
+            for p in all_paragraphs:
+                text = p.get_text(strip=True)
                 if not text:
                     continue
+                    
+                lower_text = text.lower()
                 
-                # Check if we're entering the tips section
-                if "Ty's Tips" in text or "**Ty's Tips**" in text:
-                    in_tips_section = True
-                    in_instructions_section = False
+                if "how to" in lower_text or "instruction" in lower_text:
+                    in_instructions = True
+                    in_tips = False
                     continue
-                
-                # Check if we're entering the detailed how-to section
-                if "Detailed How To:" in text or "**Detailed How To:**" in text:
-                    in_instructions_section = True
-                    in_tips_section = False
+                elif "tip" in lower_text or "advice" in lower_text:
+                    in_tips = True
+                    in_instructions = False
                     continue
-                
-                # Add the text to the appropriate section
-                if in_tips_section and text:
-                    # Clean up markdown formatting
-                    clean_text = text.replace("**", "").strip()
-                    if clean_text and clean_text != "Ty's Tips":
-                        detailed_info["tips"].append(clean_text)
-                        
-                elif in_instructions_section and text:
-                    # Clean up markdown formatting and bullet points
-                    clean_text = text.replace("**", "").strip()
-                    if clean_text and clean_text != "Detailed How To:":
-                        if clean_text.startswith("-"):
-                            detailed_info["instructions"].append(clean_text[1:].strip())
-                        else:
-                            detailed_info["instructions"].append(clean_text)
-        
+                    
+                if in_instructions:
+                    detailed_info["instructions"].append(text.replace("**", "").strip())
+                elif in_tips:
+                    detailed_info["tips"].append(text.replace("**", "").strip())
+
         return detailed_info
 
     def extract_video_urls(self, soup):
@@ -116,10 +161,26 @@ class MuscleWikiScraper:
         
         # Find all video sources
         video_elements = soup.select("video.rounded-lg source")
-        
+        if not video_elements:
+            video_elements = soup.select("video source")
+            
         for video in video_elements:
             if video.has_attr("src"):
-                video_urls.append(video["src"])
+                video_url = video["src"]
+                # Ensure URL is absolute
+                if not video_url.startswith(('http://', 'https://')):
+                    video_url = urljoin(self.base_url, video_url)
+                video_urls.append(video_url)
+        
+        # Try alternative methods if no videos found
+        if not video_urls:
+            # Look for video elements directly
+            for video in soup.find_all("video"):
+                if video.has_attr("src"):
+                    video_url = video["src"]
+                    if not video_url.startswith(('http://', 'https://')):
+                        video_url = urljoin(self.base_url, video_url)
+                    video_urls.append(video_url)
         
         # Return a dictionary with front and side views if available
         result = {}
@@ -130,8 +191,7 @@ class MuscleWikiScraper:
             
         return result
 
-    def scrape_exercise_page(self, target_url):
-        """Scrape detailed information from individual exercise page using Playwright"""
+    def scrape_exercise_page(self, target_url, page):
         male_url = target_url.get("male", "")
         if not male_url:
             return None
@@ -140,14 +200,26 @@ class MuscleWikiScraper:
         print(f"\tProcessing {full_url}")
 
         try:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-                page.goto(full_url)
-                page.wait_for_load_state("networkidle")
-                html = page.content()
-                browser.close()
+            page.goto(full_url, wait_until="domcontentloaded")
+            page.wait_for_load_state("networkidle")
 
+            try:
+                page.wait_for_selector("video", timeout=5000)
+            except:
+                pass
+
+            try:
+                page.wait_for_selector("dl", timeout=5000)
+            except:
+                print("Warning: Could not find instruction steps")
+
+            page.evaluate("""() => {
+                window.scrollTo(0, document.body.scrollHeight);
+                setTimeout(() => window.scrollTo(0, 0), 1000);
+            }""")
+            page.wait_for_timeout(2000)
+
+            html = page.content()
             soup = BeautifulSoup(html, "html.parser")
 
             step_instructions = self.extract_step_instructions(soup)
@@ -163,10 +235,11 @@ class MuscleWikiScraper:
             }
 
         except Exception as e:
-            print(f"Error scraping {full_url} with Playwright: {e}")
+            print(f"Error scraping {full_url}: {e}")
             return None
 
-    def process_exercise(self, exercise):
+
+    def process_exercise(self, exercise, page):
         """Process a single exercise entry"""
         # Basic info from API
         exercise_data = {
@@ -181,35 +254,70 @@ class MuscleWikiScraper:
             "source_url": ""
         }
         
-        detailed_info = self.scrape_exercise_page(exercise.get("target_url", {}))
-        if detailed_info:
-            exercise_data.update(detailed_info)
+        # Implement retry mechanism for reliability
+        max_retries = 3
+        retry_delay = 2
         
+        for attempt in range(max_retries):
+            try:
+                detailed_info = self.scrape_exercise_page(exercise.get("target_url", {}), page)
+                
+                if detailed_info:
+                    exercise_data.update(detailed_info)
+                    break  # Success, exit retry loop
+                    
+            except Exception as e:
+                print(f"Attempt {attempt+1}/{max_retries} failed: {e}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+    
         return exercise_data
 
-    def run(self, output_file="musclewiki_exercises.json", delay=1):
-        """Run the scraper and save results to a file"""
+    def run(self, output_file="musclewiki_exercises.json", delay=1, max_exercises=None):
         exercises = self.get_exercises_from_api()
-        total = len(exercises)
-        
-        print(f"Found {total} exercises. Starting to process...")
-        
-        for i, exercise in enumerate(exercises):
-            print(f"Processing exercise {i+1}/{total}: {exercise.get('name', 'Unknown')}")
-            result = self.process_exercise(exercise)
-            if result:
-                self.results.append(result)
 
-            if i < total - 1: 
-                time.sleep(delay)
-        
+        if max_exercises:
+            exercises = exercises[:max_exercises]
+
+        total = len(exercises)
+        print(f"Found {total} exercises. Starting to process...")
+
+        with sync_playwright() as p:
+            browser = p.firefox.launch(headless=True)
+            context = browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent=self.headers["User-Agent"]
+            )
+            page = context.new_page()
+
+            for i, exercise in enumerate(exercises):
+                print(f"Processing exercise {i+1}/{total}: {exercise.get('name', 'Unknown')}")
+                result = self.process_exercise(exercise, page)
+
+                if result:
+                    self.results.append(result)
+                    if (i + 1) % 10 == 0 or i == total - 1:
+                        with open(output_file, 'w', encoding='utf-8') as f:
+                            json.dump(self.results, f, indent=4)
+                        print(f"Progress saved: {i+1}/{total} exercises")
+
+                if i < total - 1:
+                    actual_delay = delay + (delay * 0.5 * (time.time() % 1))
+                    print(f"Waiting {actual_delay:.2f} seconds before next request...")
+                    time.sleep(actual_delay)
+
+            browser.close()
+
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(self.results, f, indent=4)
-        
+
         csv_file = output_file.replace('.json', '.csv')
         self.save_to_csv(csv_file)
-        
+
         print(f"Scraping completed. Saved {len(self.results)} exercises to {output_file} and {csv_file}")
+
 
     def save_to_csv(self, csv_file):
         """Save the results to a CSV file"""
@@ -242,4 +350,6 @@ class MuscleWikiScraper:
 
 if __name__ == "__main__":
     scraper = MuscleWikiScraper()
-    scraper.run(delay=1)
+    # You can limit the number of exercises during testing
+    # scraper.run(delay=2, max_exercises=5)
+    scraper.run(delay=2)
