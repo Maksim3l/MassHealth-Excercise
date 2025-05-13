@@ -41,7 +41,7 @@ MassHealth is a comprehensive fitness application designed to help users improve
    cd masshealth
    ```
 
-2. Start the development environment using start.sh
+2. Start the development environment using start.ps1
    ```bash
    .\start.ps1
    ```
