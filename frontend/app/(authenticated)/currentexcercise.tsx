@@ -1,26 +1,99 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import LegIcon from '../../assets/tsxicons/legicon';
 import PlayIcon from '../../assets/tsxicons/playicon_';
 import TimerIcon from '../../assets/tsxicons/timericon';
-import DoneIcon from '../../assets/tsxicons/doneicon'
+import DoneIcon from '../../assets/tsxicons/doneicon';
 import { router } from 'expo-router';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
+import { supabase } from '../../utils/supabase';
 
+type Exercise = {
+  key: string;
+  exerciseName: string;
+  reps: string;
+  playWorkout: boolean;
+  doneWorkout: boolean;
+};
 
-const CurrentExerciseList = () => {
-  const [listData, setListData] = useState(
-    Array(3)
-      .fill('')
-      .map((_, i) => ({
-        key: `${i}`,
-        exerciseName: 'Leg Extension',
-        reps: '3x10',
-        playWorkout: false, 
-        doneWorkout: false, // Flag to track completion
-      }))
-  );
+type CurrentExerciseListProps = {
+  routineName?: string;
+};
+
+const CurrentExerciseList = ({ routineName }: CurrentExerciseListProps) => {
+  const [listData, setListData] = useState<Exercise[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    if (routineName) {
+      fetchExercisesForRoutine(routineName);
+    } else {
+      // Set default data when no routine is selected
+      setListData(Array(3)
+        .fill('')
+        .map((_, i) => ({
+          key: `${i}`,
+          exerciseName: 'Leg Extension',
+          reps: '3x10',
+          playWorkout: false,
+          doneWorkout: false,
+        }))
+      );
+    }
+  }, [routineName]);
+
+  const fetchExercisesForRoutine = async (name: string) => {
+    try {
+      setLoading(true);
+      
+      // Get the routine id first
+      const { data: routineData, error: routineError } = await supabase
+        .from('Routine')
+        .select('id')
+        .eq('name', name)
+        .single();
+      
+      if (routineError || !routineData) {
+        console.error('Error fetching routine:', routineError);
+        return;
+      }
+      
+      // Define the type for the returned exercise data
+      type SupabaseExerciseItem = {
+        excercise_id: number;
+        Excercise: { name: string } | { name: string }[] | null;
+      };
+
+      // Now get exercises in this routine from Exercise_In_Routine table
+      const { data: exerciseData, error: exerciseError } = await supabase
+        .from('Excercise_in_Routine')
+        .select('excercise_id, Excercise(*)')
+        .eq('routine_id', routineData.id);
+
+      if (exerciseError) {
+        console.error('Error fetching exercises:', exerciseError);
+        return;
+      }
+
+      // Format the data for our list
+      const formattedData = (exerciseData as SupabaseExerciseItem[]).map((item, index) => ({
+        key: `${index}`,
+        exerciseName: Array.isArray(item.Excercise)
+          ? item.Excercise[0]?.name
+          : item.Excercise?.name ?? 'Unknown',
+        reps: `3x10`,
+        playWorkout: false,
+        doneWorkout: false,
+      }));
+
+      setListData(formattedData);
+    } catch (error) {
+      console.error('Unexpected error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Toggle the playWorkout flag for a specific exercise
   const togglePlayWorkout = (index: number) => {
@@ -49,8 +122,13 @@ const CurrentExerciseList = () => {
     );
   };
 
-  // Preview exercise details
-
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading exercises...</Text>
+      </View>
+    );
+  }
 
   return (
     <SwipeListView
@@ -68,7 +146,7 @@ const CurrentExerciseList = () => {
           {/* Left side (revealed when swiping right) */}
           <TouchableOpacity
             style={styles.previewButton}
-            onPress={() => router.push('/excercisedescription')}
+            onPress={() => router.push(`/excercisedescription?name=${item.exerciseName}`)}
           >
             <Text style={styles.actionText}>Preview</Text>
           </TouchableOpacity>
@@ -91,13 +169,12 @@ const CurrentExerciseList = () => {
                 <Text style={styles.actionText}>Done</Text>
               </TouchableOpacity>
             )}
-           
           </View>
         </View>
       )}
-      rightOpenValue={-180} // Increased to fit both buttons
+      rightOpenValue={-180}
       leftOpenValue={120}
-      disableRightSwipe={false} // Enable right swipe
+      disableRightSwipe={false}
     />
   );
 };
@@ -121,11 +198,11 @@ const ExerciseRow = ({
           <AnimatedCircularProgress
             size={62}
             width={2}
-            fill={item.playWorkout ? 100 : 0} // Fill when playing, empty otherwise
+            fill={item.playWorkout ? 100 : 0}
             tintColor="#6E49EB"
             backgroundColor="#E0E0E0"
             rotation={0}
-            duration={5000} // 5 seconds for example, adjust as needed
+            duration={5000}
           >
             {
               () => (
@@ -142,16 +219,13 @@ const ExerciseRow = ({
 
       <TouchableOpacity
         style={styles.buttonContainer}
-        onPress={() => togglePlayWorkout(index)} // Toggle play workout for this specific exercise
+        onPress={() => togglePlayWorkout(index)}
       >
         {item.doneWorkout ? (
-          // Render DoneIcon if the workout is marked as done
           <DoneIcon strokeColor="white" width={32} height={32} />
         ) : item.playWorkout ? (
-          // Render TimerIcon if the workout is in progress
           <TimerIcon strokeColor="white" width={32} height={32} />
         ) : (
-          // Render PlayIcon if the workout is not started yet
           <PlayIcon strokeColor="white" width={32} height={32} />
         )}
       </TouchableOpacity>
@@ -159,7 +233,6 @@ const ExerciseRow = ({
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     borderRadius: 14,
@@ -179,7 +252,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   exerciseName: {
-    fontSize: 20,
+    fontSize: 16,
     color: 'black',
   },
   repsText: {
@@ -196,7 +269,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between', // Space between left and right actions
+    justifyContent: 'space-between',
     borderRadius: 14,
     marginHorizontal: 20,
     paddingHorizontal: 20,
@@ -231,6 +304,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#888',
   },
 });
 

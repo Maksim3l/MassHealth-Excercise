@@ -12,6 +12,7 @@ import RoutinePlaceholder from '../../../components/routinePlaceholder';
 import * as Location from 'expo-location';
 import * as Paho from 'paho-mqtt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../../../utils/supabase';
 
 const leafletHtml = `
 <!DOCTYPE html>
@@ -159,6 +160,8 @@ const leafletHtml = `
 const Routines: React.FC = () => {
   const router = useRouter();
   const webViewRef = useRef<WebView>(null);
+  const [userRoutines, setUserRoutines] = useState<Array<{id: number, name: string}>>([]);
+  const [loadingRoutines, setLoadingRoutines] = useState(true);
   const [userLocation, setUserLocation] = useState({
     latitude: 46.0569,  // Default to Ljubljana
     longitude: 14.5058
@@ -313,6 +316,33 @@ const Routines: React.FC = () => {
     }
   }, [userLocation, isLoading]);
 
+  useEffect(() => {
+    async function fetchRoutines() {
+      try {
+        setLoadingRoutines(true);
+        
+        // Query the Routine table
+        const { data, error } = await supabase
+          .from('Routine')
+          .select('id, name')
+        
+        if (error) {
+          console.error('Error fetching routines:', error);
+          return;
+        }
+        
+        console.log(`Successfully fetched ${data?.length} routines`);
+        setUserRoutines(data || []);
+      } catch (error) {
+        console.error('Unexpected error in fetchRoutines:', error);
+      } finally {
+        setLoadingRoutines(false);
+      }
+    }
+    
+    fetchRoutines();
+  }, []);
+
   // Publish location updates via MQTT
   useEffect(() => {
     const client = global.mqttClient;
@@ -338,7 +368,7 @@ const Routines: React.FC = () => {
         message.retained = true; // Important: retain the message
 
         client.send(message);
-        console.log('Location published to:', topic);
+        //console.log('Location published to:', topic);
       } catch(error) {
         console.error('Error publishing location via MQTT', error);
       }
@@ -358,14 +388,12 @@ const Routines: React.FC = () => {
 
     if(client && client.isConnected()) {
       try {
-        // Subscribe to all user location topics
         client.subscribe('users/+/location', { qos: 0 });
-        console.log('Subscribed to all user locations with wildcard');
+        //console.log('Subscribed to all user locations with wildcard');
 
-        // Create message handler
         const messageHandler = (message: Paho.Message) => {
           try {
-            console.log("MQTT message received:", message.destinationName, message.payloadString);
+            //console.log("MQTT message received:", message.destinationName, message.payloadString);
             const topicParts = message.destinationName.split('/');
             
             // Make sure this is a location message
@@ -432,12 +460,11 @@ const Routines: React.FC = () => {
     return () => {
       if(client && client.isConnected()) {
         client.unsubscribe('users/+/location');
-        console.log('Unsubscribed from user locations');
+        //console.log('Unsubscribed from user locations');
       }
     };
   }, []);
 
-  // Clean up stale user data
   useEffect(() => {
     const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
     
@@ -451,14 +478,14 @@ const Routines: React.FC = () => {
           return (now - lastSeen) < STALE_THRESHOLD;
         });
       });
-    }, 12000); // Check every 2 minutes
+    }, 18000); // Check every 3 minutes
     
     return () => clearInterval(interval);
   }, [lastSeenTimes]);
 
   // Update map markers when other users' locations change
   useEffect(() => {
-    console.log("otherUserLocations changed:", otherUserLocations);
+    //console.log("otherUserLocations changed:", otherUserLocations);
     
     if (webViewRef.current && !isLoading && otherUserLocations.length > 0) {
       // Format markers data for all other users
@@ -467,7 +494,7 @@ const Routines: React.FC = () => {
         lng: user.longitude,
         userId: user.userId,
         username: user.username || 'User',
-        // Add custom marker for other users
+        // custom marker for other users
         icon: {
           className: 'other-user-marker',
           iconSize: [15, 15],
@@ -475,7 +502,7 @@ const Routines: React.FC = () => {
         }
       }));
       
-      console.log("Updating map with markers:", markersData);
+      //console.log("Updating map with markers:", markersData);
       
       // Inject markers to map
       webViewRef.current.injectJavaScript(`
@@ -612,7 +639,7 @@ const Routines: React.FC = () => {
           style={styles.mapPreviewContainer}
           onPress={navigateToMap}
         >
-          {/* Collapsed map view */}
+          {/* map view */}
           <View style={styles.mapWrapper}>
             <WebView
               ref={webViewRef}
@@ -639,9 +666,21 @@ const Routines: React.FC = () => {
         <View style={styles.buttonGroup}>
           <ScrollView horizontal={true}>
             <CreateRoutineButton onPress={() => router.push('../createroutine')}/>
-            <Routinebutton routineName='Leg day' onPress={navigateToPreview} />
-            <Routinebutton routineName='Chest day' onPress={navigateToPreview} />
-            <RoutinePlaceholder />
+             {loadingRoutines ? (
+              <Text style={styles.loadingText}>Loading routines...</Text>
+            ) : userRoutines.length > 0 ? (
+              // Map through your routines and render a button for each
+              userRoutines.map((routine) => (
+                <Routinebutton 
+                  key={routine.id}
+                  routineName={routine.name} 
+                  onPress={() => navigateToPreview(routine.name)} 
+                />
+              ))
+            ) : (
+              // placeholder if no routines are found
+              <RoutinePlaceholder />
+            )}
           </ScrollView>
         </View>
 
@@ -734,6 +773,10 @@ const styles = StyleSheet.create({
   },
   buttonGroup: {
     flexDirection: 'row'
+  },
+  loadingText: {
+  padding: 10,
+  color: '#888',
   }
 });
 

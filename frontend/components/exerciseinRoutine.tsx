@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import RoutinesIcon from '../assets/tsxicons/routinesnavbaricon';
@@ -9,38 +9,45 @@ import Svg from 'react-native-svg';
 
 interface ExerciseInRoutineProps {
   exerciseName: string;
+  overview: string,
+  video: JSON, 
   reps?: string;
   time?: string;
   press?: boolean;
   emoji?: Svg;
-  destination: string; // Route to navigate to on swipe
+  destination: string; // navigate to on swipe
+  onPress?: () => void;
+  isSelected?: boolean; 
 }
 
 const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({ 
   exerciseName, 
+  overview,
+  video,
   reps, 
   time, 
   press,
-  destination 
+  destination, 
+  onPress,
+  isSelected = false 
 }) => {
-  const [isPressed, setPressed] = useState(false);
   const router = useRouter();
   const swipeableRef = useRef<Swipeable>(null);
   
   const handlePress = () => {
-    if (press) {
-      setPressed(prev => !prev);
+    if (press && onPress) {
+      onPress();
     }
   };
 
   const containerStyle = [
     styles.container,
-    isPressed && press ? styles.pressedContainer : null,
+    isSelected && press ? styles.pressedContainer : null,
   ];
 
   const exerciseNameStyle = [
     styles.exerciseName,
-    isPressed && press ? styles.pressedText : null,
+    isSelected && press ? styles.pressedText : null,
   ];
 
   // Handle navigation when swiped
@@ -50,16 +57,18 @@ const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({
       swipeableRef.current.close();
     }
     
-    // This allows each instance of the component to navigate to a different route
+    // each instance of the component to navigate to a different route
     router.push({
       pathname: destination,
       params: { 
         exerciseName,
+        description: overview,
+        videoUrls: JSON.stringify(video)
       }
     });
   };
 
-  // Render left swipe actions (navigate button)
+  // Render left swipe actions 
   const renderLeftActions = (
     progress: Animated.AnimatedInterpolation<number>,
     dragX: Animated.AnimatedInterpolation<number>
@@ -102,28 +111,28 @@ const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({
               <RoutinesIcon 
                 height={24} 
                 width={24} 
-                color={isPressed && press ? "white" : "#6E49EB"} 
+                color={isSelected && press ? "white" : "#6E49EB"} 
               />
             </View>
-            <Text style={exerciseNameStyle}>{exerciseName}</Text>
+            <Text style={exerciseNameStyle} numberOfLines={2} ellipsizeMode="tail">{exerciseName}</Text>
           </View>
           
           <View style={styles.rightSide}>
             {reps && (
-              <Text style={[styles.repsText, isPressed && press ? styles.pressedText : null]}>
+              <Text style={[styles.repsText, isSelected && press ? styles.pressedText : null]}>
                 {reps}
               </Text>
             )}
             {press && (
-              isPressed ? (
+              isSelected ? (
                 <MinusIcon 
-                  strokeColor={isPressed ? "white" : "#6E49EB"} 
+                  strokeColor={isSelected ? "white" : "#6E49EB"} 
                   width={24} 
                   height={24} 
                 />
               ) : (
                 <PlusIcon 
-                  strokeColor={isPressed ? "white" : "#6E49EB"} 
+                  strokeColor={isSelected ? "white" : "#6E49EB"} 
                   width={24} 
                   height={24} 
                 />
@@ -164,8 +173,9 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     marginLeft: 8,
-    fontSize: 20,
+    fontSize: 16,
     color: '#000',
+    maxWidth: 100
   },
   pressedText: {
     color: 'white',
@@ -177,8 +187,8 @@ const styles = StyleSheet.create({
   },
   repsText: {
     color: '#6E49EB',
-    fontSize: 20,
-    marginRight: 10,
+    fontSize: 16,
+    marginHorizontal: 10,
   },
   leftAction: {
     alignItems: 'center',

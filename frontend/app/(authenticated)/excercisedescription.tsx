@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import BackIcon from '../../assets/tsxicons/backIcon'
 import { router } from 'expo-router'
@@ -9,7 +9,19 @@ import { useLocalSearchParams } from 'expo-router'
 
 const ExcercisePreview= () => {
 
-  const { exerciseName, reps, time } = useLocalSearchParams();
+  const { exerciseName, description, videoUrls } = useLocalSearchParams();
+  const [videoData, setVideoData] = useState<any>(null);
+
+  useEffect(() => {
+    // Parse the video URLs if they exist
+    if (videoUrls) {
+      try {
+        setVideoData(JSON.parse(videoUrls as string));
+      } catch (e) {
+        console.error("Failed to parse video URLs", e);
+      }
+    }
+  }, [videoUrls]);
 
 
   return (
@@ -30,8 +42,8 @@ const ExcercisePreview= () => {
         </View>
         <View style={styles.descriptionContainer}>
         <Text style={styles.description}>Instructions</Text>
-        <Text style={styles.describe}> Set barbell on power rack upper chest height with calf block under barbell. Position back of shoulders under barbell with both hands to sides. Position toes and balls of feet on calf block with arches and heels extending off. Lean barbell against rack and raise from supports by extending knees and hips. Support barbell against verticals with both hands to sides.
-          Raise heels by extending ankles as high as possible. Lower heels by bending ankles until calves are stretched. Repeat.</Text>
+          <Text style={styles.describe}>{description || "No instructions available for this exercise."}</Text>
+
         </View>
     </SafeAreaView>
   )
@@ -53,7 +65,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   text: {
-    fontSize: 32,
+    fontSize: 24,
     color: "#6E49EB",
     fontWeight: '600',
   },
