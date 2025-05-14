@@ -221,64 +221,48 @@ function Start-Supabase {
         }
     }
 }
-
 function Start-Frontend {
-    Write-Host "Starting frontend with Docker Compose..." -ForegroundColor Cyan
-    Push-Location ".\frontend"
+    Write-Host "Launching new console for Expo frontend..." -ForegroundColor Cyan
+
+    $frontendPath = Join-Path $PSScriptRoot "frontend"
+    $supabaseFile = Join-Path $frontendPath "utils\supabase.ts"
     
-    if (-not (Test-Path -Path ".\Dockerfile")) {
-        Write-Host "Creating Dockerfile for Expo..." -ForegroundColor Cyan
-        @"
-FROM node:18
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-
-EXPOSE 19000 19001 19002 19006 8081
-
-ENV WATCHPACK_POLLING=true
-
-CMD ["npx", "expo", "start", "--host", "lan"]
-"@ | Set-Content -Path ".\Dockerfile"
+    # Make sure we have a valid IP
+    if (-not $global:ipAddress) {
+        $global:ipAddress = Get-IPAddress
+        if (-not $global:ipAddress) {
+            Write-Host "Error: Could not detect IP address" -ForegroundColor Red
+            return
+        }
     }
-    
-    if (-not (Test-Path -Path ".\docker-compose.yml")) {
-        Write-Host "Creating docker-compose.yml for Expo..." -ForegroundColor Cyan
-        @"
-version: '3'
 
-services:
-  expo-app:
-    build: .
-    ports:
-      - "19000:19000"
-      - "19001:19001"
-      - "19002:19002"
-      - "19006:19006"
-      - "8081:8081" 
-    environment:
-      - WATCHPACK_POLLING=true
-      - REACT_NATIVE_PACKAGER_HOSTNAME=$global:ipAddress
-      - EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
-    volumes:
-      - .:/app
-      - node_modules:/app/node_modules
-    command: npx expo start --host lan
-    tty: true
-    stdin_open: true
+    if (Test-Path $supabaseFile) {
+        $content = Get-Content $supabaseFile -Raw
+        Write-Host "Current IP address: $global:ipAddress" -ForegroundColor Yellow
 
-volumes:
-  node_modules:
-"@ | Set-Content -Path ".\docker-compose.yml"
+        # More specific pattern that matches the entire URL string
+        $pattern = '(process\.env\.EXPO_PUBLIC_SUPABASE_URL\s*\|\|\s*"http:\/\/)([\d\.]+:\d+)"'
+        $replacement = "`${1}$global:ipAddress`:8000`""
+
+        $newContent = $content -replace $pattern, $replacement
+        
+        # Verify the replacement worked
+        if ($newContent -match "http://$global:ipAddress`:8000") {
+            Set-Content -Path $supabaseFile -Value $newContent -Force
+            Write-Host "Successfully updated Supabase URL to http://$global:ipAddress`:8000" -ForegroundColor Green
+        } else {
+            Write-Host "Warning: IP address replacement may not have worked correctly" -ForegroundColor Yellow
+            Write-Host "Please verify the content of $supabaseFile" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Error: Could not find $supabaseFile" -ForegroundColor Red
+        return
     }
-    
-    $env:REACT_NATIVE_PACKAGER_HOSTNAME = $global:ipAddress
-    docker compose up -d
-    
-    Pop-Location
-    Write-Host "Frontend container started" -ForegroundColor Green
+
+    $command = "cd `"$frontendPath`" ; npx expo start --tunnel"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
+
+    Write-Host "New console launched running 'npx expo start --tunnel'" -ForegroundColor Green
 }
 
 function Restart-Backend {
@@ -292,10 +276,7 @@ function Restart-Backend {
 
 function Restart-Frontend {
     Write-Host "Restarting frontend..." -ForegroundColor Cyan
-    Push-Location ".\frontend"
-    docker compose down
-    docker compose up -d
-    Pop-Location
+    Start-Frontend
     Write-Host "Frontend restarted." -ForegroundColor Green
 }
 
