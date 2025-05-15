@@ -8,6 +8,9 @@ import TagButton from '../../components/tag'
 import ExerciseinRoutine from '../../components/exerciseinRoutine'
 import DefButton from '../../components/button'
 import { supabase } from '../../utils/supabase'
+import { LegendList } from '@legendapp/list'
+import { ActivityIndicator } from 'react-native';
+
 
 type Muscle = {
   id: number;
@@ -49,6 +52,10 @@ const CreateRoutine = () => {
   const [loadingExercises, setLoadingExercises] = useState(false);
   const [savingRoutine, setSavingRoutine] = useState(false);
   const [selectedCount, setSelectedCount] = useState(0); // force re-render
+  // Add this state to track the last toggled exercise
+  const [lastToggledId, setLastToggledId] = useState<number | null>(null);
+  const [loadingExerciseId, setLoadingExerciseId] = useState<number | null>(null);
+
 
 useEffect(() => {
   async function fetchMuscles() {
@@ -56,7 +63,7 @@ useEffect(() => {
       console.log("Starting muscle fetch...");
       setLoading(true);
 
-      // Log connection details (without sensitive info)
+      // Log connection details
       console.log("Supabase connection state:", supabase ? "initialized" : "not initialized");
 
       // query
@@ -93,7 +100,7 @@ useEffect(() => {
       }
     } finally {
       setLoading(false);
-      console.log("Muscle fetch completed");
+      //console.log("Muscle fetch completed");
     }
   }
 
@@ -105,68 +112,89 @@ useEffect(() => {
     return selectedExercises.some(ex => ex.id === exerciseId);
   };
 
-  const toggleExerciseSelection = (exercise: Exercise) => {
-    console.log(`Toggling exercise: ${exercise.name}, ID: ${exercise.id}`);
-    
-    // Check if the exercise is already selected
-    const existingIndex = selectedExercises.findIndex(item => item.id === exercise.id);
-    
-    if (existingIndex >= 0) {
-      // If already selected, remove it
-      console.log('Removing exercise from selection');
-      setSelectedExercises(prev => 
-        prev.filter(item => item.id !== exercise.id)
-      );
-      setSelectedCount(prev => prev - 1); // Update counter to force re-render
-    } else {
-      // If not selected, add it with default values
-      console.log('Adding exercise to selection');
-      setSelectedExercises(prev => [
-              ...prev, 
-              { 
-                id: exercise.id, 
-                name: exercise.name, 
-                video_urls: (exercise as any).video_urls ?? [], 
-                overview: (exercise as any).overview ?? '', 
-                sets: 3, 
-                reps: 10,
-                isSelected: true
-              }
-            ]);
-      setSelectedCount(prev => prev + 1); 
-    }
-  };
+  const toggleExerciseSelection = async (exercise: Exercise) => {
+  setLoadingExerciseId(exercise.id);  // show spinner
+
+  // Allow UI update before running logic
+  await new Promise(resolve => requestAnimationFrame(resolve));
+
+  const existingIndex = selectedExercises.findIndex(item => item.id === exercise.id);
+
+  if (existingIndex >= 0) {
+    setSelectedExercises(prev =>
+      prev.filter(item => item.id !== exercise.id)
+    );
+    setSelectedCount(prev => prev - 1);
+  } else {
+    setSelectedExercises(prev => [
+      ...prev,
+      {
+        id: exercise.id,
+        name: exercise.name,
+        video_urls: (exercise as any).video_urls ?? [],
+        overview: (exercise as any).overview ?? '',
+        sets: 3,
+        reps: 10,
+        isSelected: true,
+      },
+    ]);
+    setSelectedCount(prev => prev + 1);
+  }
+
+  setLastToggledId(exercise.id);
+  setLoadingExerciseId(null); // hide spinner
+};
+
 
   // Handle tag selection
-  const handleTagPress = async (id: number) => {
-    // Toggle selection if pressing the same tag
-    if (selectedMuscle === id) {
-      setSelectedMuscle(null);
-      setExercises([]);
+const handleTagPress = async (id: number) => {
+  if (selectedMuscle === id) {
+    setSelectedMuscle(null);
+    setExercises([]);
+    return;
+  } 
+
+  setSelectedMuscle(id);
+  setExercises([]);
+  setLoadingExercises(true);
+  requestAnimationFrame(() => fetchExercises(id));
+
+ 
+};
+
+const fetchExercises = async (muscleId: number) => {
+  try {
+    const { data, error } = await supabase
+      .from('Exercise_Muscles')
+      .select('exercise_id, Exercises(*)')
+      .eq('muscle_id', muscleId)
+      .limit(30);
+
+    if (error) {
+      console.error('Error fetching exercises', error);
       return;
-    } 
-
-    setSelectedMuscle(id);
-    setLoadingExercises(true);
-    try {
-      const { data, error } = await supabase
-        .from('Exercise_Muscles')
-        .select('exercise_id, Exercises(*)')
-        .eq('muscle_id', id)
-
-      if(error) {
-        console.error('Error fetching exercises', error);
-        return
-      }
-
-      const fetchedExercises = data.map((item: any) => item.Exercises )
-      setExercises(fetchedExercises);
-    } catch(err){
-      console.error('Unexpected error fetching', err)
-    } finally {
-      setLoadingExercises(false);
     }
-  };
+
+    const fetchedExercises = Array.from(
+      new Map(
+        data
+          .map((item: any) => ({
+            ...item.Exercises,
+            id: item.exercise_id || item.Exercises.id,
+          }))
+          .filter((exercise) => exercise !== null)
+          .map((exercise) => [exercise.id, exercise]) // deduplicate by ID
+      ).values()
+    );
+    
+    setExercises(fetchedExercises);
+  } catch (err) {
+    console.error('Unexpected error fetching', err);
+  } finally {
+    setLoadingExercises(false);
+  }
+};
+
 
   // Format reps for display
   const formatSetsReps = (exercise: Exercise) => {
@@ -174,7 +202,7 @@ useEffect(() => {
     if (selectedExercise) {
       return `${selectedExercise.sets}×${selectedExercise.reps}`;
     }
-    return "Add"; // Default text when not selected
+    return "Add"; 
   };
 
   const saveRoutine = async () => {
@@ -341,34 +369,36 @@ useEffect(() => {
         </Text>
       </View>
       
-      <FlatList
-        data={exercises}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
-        renderItem={({ item }) => (
-          <ExerciseinRoutine
-            exerciseName={item.name}
-            overview={item.description ?? ''}
-            video={item.video}
-            reps={formatSetsReps(item)}
-            press={true}
-            isSelected={isExerciseSelected(item.id)} 
-            onPress={() => toggleExerciseSelection(item)}
-            destination="/excercisepreview"
-          />
-        )}
-        contentContainerStyle={styles.workoutsContainer}
-        ListEmptyComponent={
+    <LegendList
+      data={exercises}
+      estimatedItemSize={80}
+      extraData={[selectedCount, selectedExercises]} 
+      renderItem={({ item }) => (
+        <ExerciseinRoutine
+          exerciseName={item.name}
+          overview={item.description ?? ''}
+          video={item.video}
+          reps={formatSetsReps(item)}
+          press={true}
+          isSelected={isExerciseSelected(item.id)}
+          onPress={() => toggleExerciseSelection(item)}
+          destination="/excercisepreview"
+          loading={loadingExerciseId === item.id} 
+
+        />
+      )}
+      recycleItems
+      maintainVisibleContentPosition={true}
+      contentContainerStyle={styles.workoutsContainer}
+      ListEmptyComponent={
+        () =>
           loadingExercises ? (
-            <Text style={styles.emptyText}>Loading exercises...</Text>
+            <Text style={styles.emptyText}>Loading...</Text>
           ) : (
-            <Text style={styles.emptyText}>
-              {selectedMuscle
-                ? "No exercises found for this muscle group"
-                : "Select a muscle group to see exercises"}
-            </Text>
+            <Text style={styles.emptyText}>No exercises found for this muscle group.</Text>
           )
-        }
-      />
+      }
+    />
 
       {/* Status bar for debugging */}
       <View style={styles.statusBar}>

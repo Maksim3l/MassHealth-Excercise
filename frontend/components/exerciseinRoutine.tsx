@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, ActivityIndicator } from 'react-native';
 import React, { useRef } from 'react';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
@@ -18,6 +18,7 @@ interface ExerciseInRoutineProps {
   destination: string; // navigate to on swipe
   onPress?: () => void;
   isSelected?: boolean; 
+  loading?: boolean;
 }
 
 const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({ 
@@ -29,7 +30,8 @@ const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({
   press,
   destination, 
   onPress,
-  isSelected = false 
+  isSelected = false,
+  loading = false
 }) => {
   const router = useRouter();
   const swipeableRef = useRef<Swipeable>(null);
@@ -123,19 +125,24 @@ const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({
                 {reps}
               </Text>
             )}
-            {press && (
-              isSelected ? (
-                <MinusIcon 
-                  strokeColor={isSelected ? "white" : "#6E49EB"} 
-                  width={24} 
-                  height={24} 
-                />
-              ) : (
-                <PlusIcon 
-                  strokeColor={isSelected ? "white" : "#6E49EB"} 
-                  width={24} 
-                  height={24} 
-                />
+            
+            {loading ? (
+              <ActivityIndicator color={isSelected ? "white" : "#6E49EB"} size="small" />
+            ) : (
+              press && (
+                isSelected ? (
+                  <MinusIcon 
+                    strokeColor={isSelected ? "white" : "#6E49EB"} 
+                    width={24} 
+                    height={24} 
+                  />
+                ) : (
+                  <PlusIcon 
+                    strokeColor={isSelected ? "white" : "#6E49EB"} 
+                    width={24} 
+                    height={24} 
+                  />
+                )
               )
             )}
           </View>

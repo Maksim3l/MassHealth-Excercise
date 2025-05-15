@@ -104,7 +104,6 @@ const fetchRoutineDetails = useCallback(async (routineName: string) => {
         ) : userRoutines.length > 0 ? (
           <LegendList
             data={userRoutines}
-            estimatedItemSize={124}
             horizontal={true}
             recycleItems
             alignItemsAtEnd
