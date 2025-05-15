@@ -60,7 +60,7 @@ const CreateRoutine = () => {
 useEffect(() => {
   async function fetchMuscles() {
     try {
-      console.log("Starting muscle fetch...");
+      //console.log("Starting muscle fetch...");
       setLoading(true);
 
       // Log connection details
@@ -75,7 +75,7 @@ useEffect(() => {
         .select('*')
 
       const requestTime = Date.now() - startTime;
-      console.log(`Request completed in ${requestTime}ms`);
+      //console.log(`Request completed in ${requestTime}ms`);
 
       if (error) {
         console.error('Error fetching muscles:', error);

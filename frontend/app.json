@@ -17,8 +17,7 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
-    ],
+      ]    ],
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "sdkVersion": "52.0.0",

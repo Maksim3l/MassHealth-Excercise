@@ -122,7 +122,7 @@ const routinepreview: React.FC<routineInfo> = () => {
         
         const exercisesWithNames = await Promise.all(exercisePromises);
         setExercises(exercisesWithNames);
-        console.log('Processed exercises:', exercisesWithNames);
+        //console.log('Processed exercises:', exercisesWithNames);
       } catch (error) {
         console.error('Unexpected error fetching routine exercises:', error);
       } finally {
@@ -132,6 +132,22 @@ const routinepreview: React.FC<routineInfo> = () => {
     
     fetchRoutineExercises();
   }, [routineName]);
+
+  // very important so we can pass actual url
+  const parseVideoData = (videoData: any): JSON => {
+      if (!videoData) return {} as JSON;
+      
+      if (typeof videoData === 'string') {
+        try {
+          return JSON.parse(videoData) as JSON;
+        } catch (e) {
+          console.error('Failed to parse video data:', e, 'Raw data:', videoData);
+          return {} as JSON;
+        }
+      }
+      
+      return videoData as JSON;
+    };
 
   const imageAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -232,17 +248,23 @@ const routinepreview: React.FC<routineInfo> = () => {
               </View>
             ) : exercises.length > 0 ? (
               // Map through exercises and render each one
-              exercises.map((exercise) => (
-                <ExerciseinRoutine 
-                  key={exercise.id}
-          		  overview={exercise.overview ?? ""}
-                  video={typeof exercise.video === 'object' && exercise.video !== null ? exercise.video : {} as JSON}
-                  exerciseName={exercise.exerciseName} 
-                  reps={formatSetsReps(exercise)}
-                  press={false}
-                  destination="/excercisedescription"
-                />
-              ))
+              exercises.map((exercise) => {
+                //console.log('Video data before parsing:', exercise.video);
+                const parsedVideo = parseVideoData(exercise.video);
+                //console.log('Video data after parsing:', parsedVideo);
+                
+                return (
+                  <ExerciseinRoutine 
+                    key={exercise.id}
+                    overview={exercise.overview ?? ""}
+                    video={parsedVideo}
+                    exerciseName={exercise.exerciseName} 
+                    reps={formatSetsReps(exercise)}
+                    press={false}
+                    destination="/excercisedescription"
+                  />
+                );
+              })
             ) : (
               <Text style={styles.noExercisesText}>No exercises found in this routine</Text>
             )}

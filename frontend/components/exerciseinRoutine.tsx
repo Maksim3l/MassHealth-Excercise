@@ -58,6 +58,8 @@ const ExerciseinRoutine: React.FC<ExerciseInRoutineProps> = ({
     if (swipeableRef.current) {
       swipeableRef.current.close();
     }
+    console.log(JSON.stringify(video))
+
     
     // each instance of the component to navigate to a different route
     router.push({
