@@ -10,6 +10,8 @@ import DefButton from '../../components/button'
 import { supabase } from '../../utils/supabase'
 import { LegendList } from '@legendapp/list'
 import { ActivityIndicator } from 'react-native';
+import CustomAlert from '../../components/CustomAlert';  // <-- import your custom alert
+
 
 
 type Muscle = {
@@ -55,6 +57,8 @@ const CreateRoutine = () => {
   // Add this state to track the last toggled exercise
   const [lastToggledId, setLastToggledId] = useState<number | null>(null);
   const [loadingExerciseId, setLoadingExerciseId] = useState<number | null>(null);
+  const [customAlertVisible, setCustomAlertVisible] = useState(false);
+  const [customAlertMessage, setCustomAlertMessage] = useState('');
 
 
 useEffect(() => {
@@ -209,13 +213,14 @@ const fetchExercises = async (muscleId: number) => {
   console.log(`Selected exercises count: ${selectedExercises.length}`);
   
   if(!routineName){
-    Alert.alert("Error", "Please enter a routine name")
+    setCustomAlertMessage('Please enter a routine name');
+    setCustomAlertVisible(true);
     return;
   }
 
   if(selectedExercises.length === 0) {
-    Alert.alert("Error", "Please select at least one exercise");
-    return;
+    setCustomAlertMessage('Please select at least one exercise');
+    setCustomAlertVisible(true);
   }
 
   try {
@@ -301,15 +306,14 @@ const fetchExercises = async (muscleId: number) => {
       throw new Error(`Error linking exercises to routine: ${relationshipErrors.join(', ')}`);
     }
 
-    Alert.alert(
-      "Success", 
-      "Routine created successfully!", 
-      [{ text: "OK", onPress: () => router.back() }]
-    );
+    setCustomAlertMessage('Routine created successfully');
+    setCustomAlertVisible(true);
+    router.back()
 
   } catch (error) {
     console.error('Error saving routine:', error);
-    Alert.alert("Error", error instanceof Error ? error.message : "Failed to save routine");
+    setCustomAlertMessage('Failed to save a routine');
+    setCustomAlertVisible(true);
   } finally {
     setSavingRoutine(false);
   }
@@ -413,6 +417,12 @@ const fetchExercises = async (muscleId: number) => {
           onPress={saveRoutine}
         />
       </View>
+      <CustomAlert
+        visible={customAlertVisible}
+        title="Error"
+        message={customAlertMessage}
+        onClose={() => setCustomAlertVisible(false)}
+      />
     </SafeAreaView>
   )
 }

@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import * as Paho from 'paho-mqtt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../../utils/supabase';
+import { useFocusEffect } from 'expo-router'; // Update this import
 
 const leafletHtml = `
 <!DOCTYPE html>
@@ -157,6 +158,26 @@ const leafletHtml = `
 </html>
 `;
 
+const fetchRoutines = async (setUserRoutines: any, setLoadingRoutines: any) => {
+  try {
+    setLoadingRoutines(true);
+    const { data, error } = await supabase
+      .from('Routine')
+      .select('id, name')
+    
+    if (error) {
+      console.error('Error fetching routines:', error);
+      return;
+    }
+    
+    setUserRoutines(data || []);
+  } catch (error) {
+    console.error('Unexpected error in fetchRoutines:', error);
+  } finally {
+    setLoadingRoutines(false);
+  }
+};
+
 const Routines: React.FC = () => {
   const router = useRouter();
   const webViewRef = useRef<WebView>(null);
@@ -168,6 +189,7 @@ const Routines: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [city, setCity] = useState<string | null>(null);
+  
   
   // Fixed locations
   const locations = [
@@ -316,32 +338,11 @@ const Routines: React.FC = () => {
     }
   }, [userLocation, isLoading]);
 
-  useEffect(() => {
-    async function fetchRoutines() {
-      try {
-        setLoadingRoutines(true);
-        
-        // Query the Routine table
-        const { data, error } = await supabase
-          .from('Routine')
-          .select('id, name')
-        
-        if (error) {
-          console.error('Error fetching routines:', error);
-          return;
-        }
-        
-        console.log(`Successfully fetched ${data?.length} routines`);
-        setUserRoutines(data || []);
-      } catch (error) {
-        console.error('Unexpected error in fetchRoutines:', error);
-      } finally {
-        setLoadingRoutines(false);
-      }
-    }
-    
-    fetchRoutines();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchRoutines(setUserRoutines, setLoadingRoutines);
+    }, [])
+  );
 
   // Publish location updates via MQTT
   useEffect(() => {

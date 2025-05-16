@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import * as Paho from 'paho-mqtt';
+import CustomAlert from '../../components/CustomAlert';
 
 interface LocationData {
   latitude: number;
@@ -208,6 +209,8 @@ const Map: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [otherUserLocations, setOtherUserLocations] = useState<UserLocation[]>([]);
   const [lastSeenTimes, setLastSeenTimes] = useState<{[userId: string]: number}>({});
+  const [customAlertVisible, setCustomAlertVisible] = useState(false);
+  const [customAlertMessage, setCustomAlertMessage] = useState('');
   
   // Debug effect to check global variables
   useEffect(() => {
@@ -619,7 +622,8 @@ const Map: React.FC = () => {
                 }
               `);
             } else {
-              Alert.alert('Location not available', 'Please enable location services and try again.');
+              setCustomAlertMessage('PLocation not available');
+              setCustomAlertVisible(true);
             }
           }}
         >
@@ -634,6 +638,12 @@ const Map: React.FC = () => {
           </View>
         )}
       </SafeAreaView>
+      <CustomAlert
+        visible={customAlertVisible}
+        title="Error"
+        message={customAlertMessage}
+        onClose={() => setCustomAlertVisible(false)}
+      />
     </View>
   );
 }

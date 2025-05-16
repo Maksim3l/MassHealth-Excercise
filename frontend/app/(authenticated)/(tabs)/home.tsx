@@ -1,49 +1,51 @@
-import { View, Text, SafeAreaView, StyleSheet, Image, Dimensions, Alert } from 'react-native';
+import { View, Text, SafeAreaView, StyleSheet, Image, Dimensions, ScrollView } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
 import HomeIcon from '../../../assets/tsxicons/homenavbaricon';
 import FireIcon from '../../../assets/tsxicons/fireicon';
 import SleepIcon from '../../../assets/tsxicons/sleepicon';
 import CustomDate from '../../../components/date';
 import { supabase } from '../../../utils/supabase';
+import CustomAlert from '../../../components/CustomAlert';  // <-- import your custom alert
 
 const width = Dimensions.get('window').width;
-
 const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const home = () => {
-
   const [profile, setProfile] = useState({ name: '', username: '' });
-  
-    useEffect(() => {
-      const fetchProfile = async () => {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-  
-        if (userError) {
-          Alert.alert('Error', userError.message);
-          return;
+  const [customAlertVisible, setCustomAlertVisible] = useState(false);
+  const [customAlertMessage, setCustomAlertMessage] = useState('');
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError) {
+        setCustomAlertMessage(userError.message);
+        setCustomAlertVisible(true);
+        return;
+      }
+
+      if (user) {
+        const { data, error } = await supabase
+          .from('User_Metadata')
+          .select('name, username')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          setCustomAlertMessage(error.message);
+          setCustomAlertVisible(true);
+        } else {
+          setProfile({ name: data.name, username: data.username });
         }
-  
-        if (user) {
-          const { data, error } = await supabase
-            .from('User_Metadata')
-            .select('name, username')
-            .eq('user_id', user.id)
-            .single();
-  
-          if (error) {
-            Alert.alert('Error', error.message);
-          } else {
-            setProfile({ name: data.name, username: data.username });
-          }
-        }
-      };
-  
-      fetchProfile();
-    }, []);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   const today = new Date();
-  const todayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1; // Make Monday index 0, Sunday index 6
+  const todayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1; // Monday = 0, Sunday = 6
   const weekDates = dayNames.map((_, index) => {
     const date = new Date();
     date.setDate(today.getDate() - todayIndex + index);
@@ -107,6 +109,14 @@ const home = () => {
           ))}
         </View>
       </ScrollView>
+
+      {/* Custom Alert Component */}
+      <CustomAlert
+        visible={customAlertVisible}
+        title="Error"
+        message={customAlertMessage}
+        onClose={() => setCustomAlertVisible(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -117,7 +127,6 @@ const styles = StyleSheet.create({
     position: 'relative', 
     marginTop: 10 
   },
-
   sectionTitle: { 
     flexDirection: 'row', 
     marginHorizontal: 20, 
@@ -207,7 +216,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, 
     paddingVertical: 4 
   },
-
   currentExerciseText: {
     color: 'white',
     fontSize: 20 

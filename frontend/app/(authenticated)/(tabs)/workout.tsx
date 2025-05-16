@@ -108,6 +108,7 @@ const fetchRoutineDetails = useCallback(async (routineName: string) => {
             recycleItems
             alignItemsAtEnd
             maintainScrollAtEnd
+            columnWrapperStyle={{ gap: 8 }}
             maintainScrollAtEndThreshold={0.1}
             renderItem={({ item }) => (
               <Routinebutton
@@ -124,10 +125,10 @@ const fetchRoutineDetails = useCallback(async (routineName: string) => {
 
       {selectedRoutine ? (
         <>
-          <SectionTitle textOne={selectedRoutine} textTwo="Details" />
+          <SectionTitle textTwo="Details" />
           <View style={styles.routineDetailsContainer}>
             <Text style={styles.routineDetailsText}>
-              {selectedRoutine} - {routineDetails?.sets || 0} sets, {routineDetails?.duration || 0} sec
+              {selectedRoutine}
             </Text>
           </View>
           <CurrentExerciseList routineName={selectedRoutine} />
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
   },
   routineDetailsContainer: {
     borderRadius: 8,
-    marginHorizontal: 20,
+    marginHorizontal: 22,
     marginBottom: 10,
     backgroundColor: '#6E49EB',
     paddingHorizontal: 8,
