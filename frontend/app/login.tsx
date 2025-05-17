@@ -166,9 +166,10 @@ const login = () => {
       // Fetch and set username
       try {
         const { data: userData, error: usernameError } = await supabase
-          .from('User_Metadata')
-          .select('username')
-          .single();
+        .from('User_Metadata')
+        .select('username')
+        .eq('user_id', data.user.id)
+        .single();
           
         let safeUsername;
         if (usernameError) {

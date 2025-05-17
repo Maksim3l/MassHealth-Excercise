@@ -10,7 +10,7 @@ import DefButton from '../../components/button'
 import { supabase } from '../../utils/supabase'
 import { LegendList } from '@legendapp/list'
 import { ActivityIndicator } from 'react-native';
-import CustomAlert from '../../components/CustomAlert';  // <-- import your custom alert
+import CustomAlert from '../../components/CustomAlert';  
 
 
 
