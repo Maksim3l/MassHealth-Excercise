@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'black',
-    fontSize: 24
+    fontSize: 18
   },
   icon: {
     width: 20,

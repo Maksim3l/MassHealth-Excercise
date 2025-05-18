@@ -9,6 +9,9 @@ import DefButton from '../components/button';
 import { supabase } from '../utils/supabase';
 import * as Paho from 'paho-mqtt';
 
+const MQTT_HOST = '192.168.1.14'; // Update actual broker address
+const MQTT_PORT = 9001;
+
 const login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,45 +19,118 @@ const login = () => {
   const [showReset, setShowReset] = useState(false)
   const [mqttClient, setMqttClient] = useState<Paho.Client | null>(null)
 
-  // On component mount, check if there's an existing session and redirect if found
   useEffect(() => {
     checkExistingSession();
   }, [])
 
-  // Cleanup MQTT client when component unmounts
   useEffect(() => {
     return () => {
-      if(mqttClient && mqttClient.isConnected()) {
-        try {
-          // Send offline status before disconnecting
-          if (global.userId) {
-            const offlineMessage = {
-              userId: global.userId,
-              username: global.username || 'anonymous',
-              status: 'offline',
-              timestamp: new Date().toISOString()
-            };
-            
-            const presenceMessage = new Paho.Message(JSON.stringify(offlineMessage));
-            presenceMessage.destinationName = `users/${global.userId}/presence`;
-            presenceMessage.qos = 0;
-            presenceMessage.retained = true;
-            
-            mqttClient.send(presenceMessage);
-            console.log('Published offline presence message');
-          }
-          
-          // Disconnect MQTT
-          mqttClient.disconnect();
-          console.log('Disconnected from MQTT broker');
-        } catch(e){
-          console.error("Error disconnecting MQTT:", e)
-        }
-      }
+      disconnectMQTT();
     }
   }, [mqttClient])
 
-  // Check if a valid session exists and redirect if it does
+  // Function to handle MQTT disconnection
+  const disconnectMQTT = () => {
+    if(mqttClient && mqttClient.isConnected()) {
+      try {
+        // Send offline status before disconnecting
+        if (global.userId) {
+          const offlineMessage = {
+            userId: global.userId,
+            username: global.username || 'anonymous',
+            status: 'offline',
+            timestamp: new Date().toISOString()
+          };
+          
+          const presenceMessage = new Paho.Message(JSON.stringify(offlineMessage));
+          presenceMessage.destinationName = `users/${global.userId}/presence`;
+          presenceMessage.qos = 0;
+          presenceMessage.retained = true;
+          
+          mqttClient.send(presenceMessage);
+          console.log('Published offline presence message');
+        }
+        
+        mqttClient.disconnect();
+        console.log('Disconnected from MQTT broker');
+        global.mqttClient = null;
+      } catch(e) {
+        console.error("Error disconnecting MQTT:", e);
+        global.mqttClient = null;
+      }
+    }
+  }
+
+  // Function to connect to MQTT
+  const connectToMQTT = (userId: string, username: string) => {
+    if (global.mqttClient && global.mqttClient.isConnected()) {
+      console.log('Disconnecting existing MQTT client before login');
+      try {
+        global.mqttClient.disconnect();
+      } catch (disconnectError) {
+        console.warn('Error disconnecting existing client:', disconnectError);
+      }
+      global.mqttClient = null;
+    }
+
+    try {
+      // Create a unique client ID with timestamp to prevent duplicates
+      const timestamp = new Date().getTime();
+      const clientId = `user_${userId}_${timestamp}_${Math.random().toString(16).substr(2, 8)}`;
+      console.log('Creating new MQTT client with ID:', clientId);
+      
+      const client = new Paho.Client(MQTT_HOST, MQTT_PORT, clientId);
+      
+      client.onConnectionLost = (responseObject: Paho.MQTTError) => {
+        if (responseObject.errorCode !== 0) {
+          console.log("Connection lost:", responseObject.errorMessage);
+        }
+      };
+      
+      client.onMessageArrived = (message: Paho.Message) => {
+        console.log("Message received:", message.destinationName, message.payloadString);
+      };
+      
+      // Connect to the broker
+      client.connect({
+        onSuccess: () => {
+          console.log("Connected to MQTT broker with client ID:", clientId);
+          setMqttClient(client);
+          global.mqttClient = client;
+          
+          // Subscribe to all user location topics
+          client.subscribe('users/+/location', { qos: 0 });
+          console.log('Subscribed to all user locations');
+          
+          // Publish presence message
+          const connectMessage = {
+            userId: userId,
+            username: username,
+            status: 'online',
+            timestamp: new Date().toISOString()
+          };
+          
+          const presenceMessage = new Paho.Message(JSON.stringify(connectMessage));
+          presenceMessage.destinationName = `users/${userId}/presence`;
+          presenceMessage.qos = 0;
+          presenceMessage.retained = true;
+          
+          client.send(presenceMessage);
+          console.log('Published presence message');
+        },
+        onFailure: (err: any) => {
+          console.error("MQTT connection failed:", err);
+        },
+        useSSL: false // Change to true if using SSL
+      });
+      
+      return client;
+    } catch (error) {
+      console.error("MQTT setup error:", error);
+      return null;
+    }
+  };
+
   async function checkExistingSession() {
     try {
       //console.log("Checking for existing session...")
@@ -74,6 +150,19 @@ const login = () => {
         
         if (expiresAt && expiresAt > now) {
           //console.log("Found valid existing session, redirecting to authenticated route")
+          
+          // Get username for MQTT connection
+          const username = await AsyncStorage.getItem('username') || `user-${data.session.user.id.substring(0, 8)}`;
+          global.username = username;
+          global.userId = data.session.user.id;
+          
+          if (!global.mqttClient || !global.mqttClient.isConnected()) {
+            const client = connectToMQTT(data.session.user.id, username);
+            if (client) {
+              setMqttClient(client);
+            }
+          }
+          
           router.replace('/(authenticated)/(tabs)/home')
           return // Keep loading true while redirecting
         } else {
@@ -92,7 +181,7 @@ const login = () => {
     }
   }
 
-  // Function to prepare for a clean login attempt (only used when needed)
+  // Function to prepare for a clean login attempt 
   async function prepareForLogin() {
     try {
       //console.log("Signing out and clearing tokens...")
@@ -100,9 +189,10 @@ const login = () => {
       // Sign out first
       await supabase.auth.signOut({ scope: 'global' })
       
-      // Clear local storage tokens
       await AsyncStorage.removeItem('supabase.auth.token')
       await AsyncStorage.removeItem('supabase.auth.refreshToken')
+      
+      disconnectMQTT();
       
       //console.log("Session cleared successfully")
     } catch (err) {
@@ -160,7 +250,6 @@ const login = () => {
         return
       }
       
-      // Successfully logged in
       console.log("Login successful!")
 
       // Fetch and set username
@@ -185,14 +274,12 @@ const login = () => {
         await AsyncStorage.setItem('userId', data.user.id);
         await AsyncStorage.setItem('username', safeUsername);
         
-        // Set global variables
         global.username = safeUsername;
         global.userId = data.user.id;
         
         console.log("Set and persisted username:", safeUsername);
       } catch (err) {
         console.error("Unexpected error handling user data:", err);
-        // Use fallback username
         const safeUsername = `user-${data.user.id.substring(0, 8)}`;
         global.username = safeUsername;
         global.userId = data.user.id;
@@ -206,57 +293,10 @@ const login = () => {
         }
       }
       
-      try {
-        // Create Paho MQTT client with unique client ID
-        const clientId = `user_${data.user.id}_${Math.random().toString(16).substr(2, 8)}`;
-        const client = new Paho.Client('192.168.1.45', 9001, clientId);
-        
-        // Set up callbacks
-        client.onConnectionLost = (responseObject: Paho.MQTTError) => {
-          if (responseObject.errorCode !== 0) {
-            console.log("Connection lost:", responseObject.errorMessage);
-          }
-        };
-        
-        client.onMessageArrived = (message: Paho.Message) => {
-          console.log("Message received:", message.destinationName, message.payloadString);
-        };
-        
-        // Connect to the broker
-        client.connect({
-          onSuccess: () => {
-            console.log("Connected to MQTT broker with client ID:", clientId);
-            setMqttClient(client);
-            global.mqttClient = client;
-            
-            // Subscribe to all user location topics
-            client.subscribe('users/+/location', { qos: 0 });
-            console.log('Subscribed to all user locations');
-            
-            // Publish presence message
-            const connectMessage = {
-              userId: data.user.id,
-              username: global.username,
-              status: 'online',
-              timestamp: new Date().toISOString()
-            };
-            
-            // Create and send presence message with retained flag
-            const presenceMessage = new Paho.Message(JSON.stringify(connectMessage));
-            presenceMessage.destinationName = `users/${data.user.id}/presence`;
-            presenceMessage.qos = 0;
-            presenceMessage.retained = true;
-            
-            client.send(presenceMessage);
-            console.log('Published presence message');
-          },
-          onFailure: (err: any) => {
-            console.error("MQTT connection failed:", err);
-          },
-          useSSL: false // Change to true if using SSL
-        });
-      } catch (mqttError) {
-        console.error("MQTT setup error:", mqttError);
+      // Connect to MQTT
+      const client = connectToMQTT(data.user.id, global.username || `user-${data.user.id.substring(0, 8)}`);
+      if (client) {
+        setMqttClient(client);
       }
       
       router.replace('/(authenticated)/(tabs)/home');
@@ -331,7 +371,19 @@ const login = () => {
         return;
       }
       
-      // Successfully logged in
+      const safeUsername = `user-${data.user.id.substring(0, 8)}`;
+      global.username = safeUsername;
+      global.userId = data.user.id;
+      
+      await AsyncStorage.setItem('userId', data.user.id);
+      await AsyncStorage.setItem('username', safeUsername);
+      
+      // Connect to MQTT
+      const client = connectToMQTT(data.user.id, safeUsername);
+      if (client) {
+        setMqttClient(client);
+      }
+      
       console.log("Login successful after token reset!");
       router.replace('/(authenticated)/(tabs)/home');
       
@@ -343,45 +395,6 @@ const login = () => {
     }
   }
 
-  // Function to handle sign out (call this when user logs out)
-  async function signOut() {
-    try {
-      // Send offline status
-      if (mqttClient && mqttClient.isConnected() && global.userId) {
-        const offlineMessage = {
-          userId: global.userId,
-          username: global.username,
-          status: 'offline',
-          timestamp: new Date().toISOString()
-        };
-        
-        const presenceMessage = new Paho.Message(JSON.stringify(offlineMessage));
-        presenceMessage.destinationName = `users/${global.userId}/presence`;
-        presenceMessage.qos = 0;
-        presenceMessage.retained = true;
-        
-        mqttClient.send(presenceMessage);
-        mqttClient.disconnect();
-      }
-      
-      // Clear AsyncStorage
-      await AsyncStorage.removeItem('userId');
-      await AsyncStorage.removeItem('username');
-      
-      // Clear global variables
-      global.userId = null;
-      global.username = null;
-      global.mqttClient = null;
-      
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-      router.replace('/login');
-    } catch (err) {
-      console.error("Error during sign out:", err);
-    }
-  }
-
-  // Show a loading spinner while checking session
   if (loading && !email && !password) {
     return (
       <SafeAreaView style={styles.safeArea}>

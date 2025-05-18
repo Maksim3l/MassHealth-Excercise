@@ -1,5 +1,7 @@
 import { View, Text, SafeAreaView, Image, StyleSheet, TouchableOpacity, Alert, FlatList } from 'react-native';
 import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Paho from 'paho-mqtt';
 import { Dimensions } from 'react-native';
 import ProfileIcon from '../../../assets/tsxicons/profilenavbaricon';
 import SaveIcon from '../../../assets/tsxicons/saveicon';
@@ -12,16 +14,53 @@ import CustomAlert from '../../../components/CustomAlert';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height;
-
-async function signOut() {
-  const { error } = await supabase.auth.signOut()
-
-  if (error) {
-    Alert.alert('Error', error.message)
-  } else {
-    router.replace('../../login')
+const signOut = async () => {
+  try {
+    if (global.mqttClient && global.mqttClient.isConnected()) {
+      try {
+        // Send offline presence message
+        const offlineMessage = {
+          userId: global.userId,
+          username: global.username || 'anonymous',
+          status: 'offline',
+          timestamp: new Date().toISOString()
+        };
+        
+        const presenceMessage = new Paho.Message(JSON.stringify(offlineMessage));
+        presenceMessage.destinationName = `users/${global.userId}/presence`;
+        presenceMessage.qos = 0;
+        presenceMessage.retained = true;
+        
+        global.mqttClient.send(presenceMessage);
+        console.log('Published offline presence message');
+        
+        // Disconnect MQTT client
+        global.mqttClient.disconnect();
+        console.log('Disconnected from MQTT broker');
+      } catch (error) {
+        console.error('Error disconnecting MQTT:', error);
+      }
+    }
+    
+    // Clear global variables
+    global.mqttClient = null;
+    global.userId = null;
+    global.username = null;
+    
+    // Clear AsyncStorage
+    await AsyncStorage.removeItem('userId');
+    await AsyncStorage.removeItem('username');
+    
+    // Sign out from Supabase
+    await supabase.auth.signOut();
+    
+    console.log('User signed out successfully');
+    router.replace('../../login');
+  } catch (error) {
+    console.error('Error during sign out:', error);
   }
-}
+};
+
 
 const findUserByUsername = async (username: string) => {
   console.log("Searching for username:", username); 
