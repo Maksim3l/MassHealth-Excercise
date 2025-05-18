@@ -3,6 +3,10 @@
 # dependencies
 node_modules/
 venv/
+positive/
+anchor/
+negative/
+tensorflow_env/
 
 # Expo
 .expo/
