@@ -17,7 +17,9 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ]    ],
+      ],
+      "expo-video"
+    ],
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "sdkVersion": "52.0.0",

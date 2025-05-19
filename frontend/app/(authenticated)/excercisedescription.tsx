@@ -1,5 +1,4 @@
-import { Video } from 'expo-av'; 
-import React, { useEffect, useState, useRef, RefObject } from 'react'; 
+import React, { useEffect, useState, useRef } from 'react'; 
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native'; 
 import { SafeAreaView } from 'react-native-safe-area-context'; 
 import BackIcon from '../../assets/tsxicons/backIcon'; 
@@ -7,47 +6,119 @@ import { router } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router'; 
 import { ScrollView } from 'react-native';
 import WebView from 'react-native-webview';
+import { useVideoPlayer, VideoView } from 'expo-video'
 
 const { width } = Dimensions.get('window');
 const videoWidth = Math.min(320, width - 40); 
 const videoHeight = videoWidth * 0.6; 
-
-// Define a type for video refs to allow string indexing
-type VideoRefs = {
-  [key: string]: RefObject<any>;
-};
 
 const ExcercisePreview = () => {   
   const params = useLocalSearchParams();
   const { exerciseName, description, videoUrls } = params;
   const [videoData, setVideoData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Define videoRefs with proper typing for string indexing
-  const videoRefs: VideoRefs = {
-    side: useRef(null),
-    front: useRef(null),
-    other: useRef(null)
+  const [mainVideoUrl, setMainVideoUrl] = useState<string | null>(null);
+  const [videoType, setVideoType] = useState<string>('');
+  const [videoLoading, setVideoLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0); // Add refresh counter
+
+  // Initialize player with the first video
+  const player = useVideoPlayer(
+    mainVideoUrl ? { uri: `${mainVideoUrl}?t=${refresh}` } : null, // Add refresh parameter to force reload
+    (player) => {
+      player.loop = true;
+      player.play();
+    }
+  );
+
+  // Add loading timeout effect - reduced to 2 seconds for better UX
+  useEffect(() => {
+    if (mainVideoUrl) {
+      setVideoLoading(true);
+      
+      const timer = setTimeout(() => {
+        setVideoLoading(false);
+      }, 2000);  // Reduced from 4s to 2s
+      
+      return () => clearTimeout(timer);
+    }
+  }, [mainVideoUrl, refresh]); // Include refresh in dependencies
+
+  // Add a refresh handler
+  const handleRefresh = () => {
+    setVideoLoading(true);
+    setRefresh(prev => prev + 1); // Increment refresh counter to force video reload
+    
+    
   };
 
   const isYouTubeUrl = (url: string): boolean => {
-    const result = !!url && (
+    return !!url && (
       url.includes('youtube.com') || 
       url.includes('youtu.be') || 
       url.includes('youtube-nocookie.com')
     );
-    //console.log(`Checking if URL is YouTube: ${url} => ${result}`);
-    return result;
   };
 
   const isVimeoUrl = (url: string): boolean => {
-    const result = !!url && (
+    return !!url && (
       url.includes('vimeo.com') || 
       url.includes('player.vimeo.com')
     );
-    //console.log(`Checking if URL is Vimeo: ${url} => ${result}`);
-    return result;
   };
+
+  useEffect(() => {
+    if (videoUrls) {
+      try {
+        let parsed;
+        
+        if (typeof videoUrls === 'string') {
+          parsed = JSON.parse(videoUrls);
+        } else if (typeof videoUrls === 'object') {
+          parsed = videoUrls;
+        } else {
+          parsed = null;
+        }
+        
+        if (parsed) {
+          setVideoData(parsed);
+          
+          // Get the first regular video URL prioritizing front, then side, then other
+          const preferredOrder = ['front', 'side', 'other'];
+          let foundVideo = false;
+          
+          // Try to find a video in the preferred order
+          for (const key of preferredOrder) {
+            if (parsed[key] && typeof parsed[key] === 'string' && !isYouTubeUrl(parsed[key]) && !isVimeoUrl(parsed[key])) {
+              console.log(`Using ${key} video:`, parsed[key]);
+              setMainVideoUrl(parsed[key]);
+              setVideoType(key);
+              foundVideo = true;
+              break;
+            }
+          }
+          
+          // If no video found in preferred order, use any available video
+          if (!foundVideo) {
+            const keys = Object.keys(parsed);
+            for (const key of keys) {
+              const url = parsed[key];
+              if (url && typeof url === 'string' && !isYouTubeUrl(url) && !isVimeoUrl(url)) {
+                console.log(`Using ${key} video:`, url);
+                setMainVideoUrl(url);
+                setVideoType(key);
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse video URLs", e);
+      }
+    }
+    
+    setLoading(false);
+  }, [videoUrls]);
 
   // Function to extract YouTube video ID from URL
   const getYoutubeVideoId = (url: string): string | null => {
@@ -55,12 +126,10 @@ const ExcercisePreview = () => {
     
     let videoId = null;
     
-    // youtu.be/VIDEO_ID format
     if (url.includes('youtu.be/')) {
       const splitUrl = url.split('youtu.be/')[1];
       videoId = splitUrl.split('?')[0];
     } 
-    // youtube.com/watch?v=VIDEO_ID format
     else if (url.includes('youtube.com/watch')) {
       try {
         const urlParams = new URLSearchParams(url.split('?')[1]);
@@ -69,7 +138,6 @@ const ExcercisePreview = () => {
         console.error("Error parsing YouTube watch URL:", e);
       }
     } 
-    // youtube.com/embed/VIDEO_ID format
     else if (url.includes('/embed/')) {
       const splitUrl = url.split('/embed/')[1];
       videoId = splitUrl.split('?')[0];
@@ -81,10 +149,8 @@ const ExcercisePreview = () => {
   const getVimeoVideoId = (url: string): string | null => {
     if (!url) return null;
     
-    // Handle different Vimeo URL formats
     let videoId = null;
     
-    // Extract ID from any Vimeo URL format
     if (url.includes('player.vimeo.com/video/')) {
       const matches = url.match(/player\.vimeo\.com\/video\/(\d+)/);
       if (matches && matches[1]) {
@@ -105,30 +171,6 @@ const ExcercisePreview = () => {
     return videoId;
   };
 
-  useEffect(() => {
-    if (videoUrls) {
-      try {
-        let parsed;
-        
-        if (typeof videoUrls === 'string') {
-          parsed = JSON.parse(videoUrls);
-        } else if (typeof videoUrls === 'object') {
-          parsed = videoUrls;
-        } else {
-          parsed = null;
-        }
-        
-        if (parsed) {
-          setVideoData(parsed);
-        }
-      } catch (e) {
-        console.error("Failed to parse video URLs", e);
-      }
-    }
-    
-    setLoading(false);
-  }, [videoUrls]);
-
   // Render YouTube video
   const renderYouTubeVideo = (url: string) => {
     const videoId = getYoutubeVideoId(url);
@@ -141,7 +183,8 @@ const ExcercisePreview = () => {
       );
     }
     
-    const embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=0&showinfo=0&controls=1`;
+    // Add a cache-busting parameter to force refresh
+    const embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=0&showinfo=0&controls=1&t=${refresh}`;
     
     return (
       <WebView
@@ -150,6 +193,8 @@ const ExcercisePreview = () => {
         domStorageEnabled={true}
         source={{ uri: embedUrl }}
         allowsFullscreenVideo={true}
+        onLoadStart={() => setVideoLoading(true)}
+        onLoadEnd={() => setVideoLoading(false)}
       />
     );
   };
@@ -166,7 +211,8 @@ const ExcercisePreview = () => {
       );
     }
     
-    const embedUrl = `https://player.vimeo.com/video/${videoId}?autoplay=0&title=0&byline=0&portrait=0`;
+    // Add a cache-busting parameter to force refresh
+    const embedUrl = `https://player.vimeo.com/video/${videoId}?autoplay=0&title=0&byline=0&portrait=0&t=${refresh}`;
     
     return (
       <WebView
@@ -175,53 +221,55 @@ const ExcercisePreview = () => {
         domStorageEnabled={true}
         source={{ uri: embedUrl }}
         allowsFullscreenVideo={true}
+        onLoadStart={() => setVideoLoading(true)}
+        onLoadEnd={() => setVideoLoading(false)}
       />
     );
   };
 
-  // Render regular video with expo-av
-  const renderNormalVideo = (url: string, videoRef: RefObject<any>) => {
-    return (
-      <Video
-        ref={videoRef}
-        source={{ uri: url }}
-        useNativeControls
-        style={styles.video}
-      />
-    );
-  };
-
-  // Dynamically get or create a ref for a view type
-  const getVideoRef = (viewType: string): RefObject<any> => {
-    if (videoRefs[viewType]) {
-      return videoRefs[viewType];
+  const renderMainVideo = () => {
+    if (!mainVideoUrl) {
+      return (
+        <View style={styles.videoError}>
+          <Text style={styles.videoErrorText}>No video available</Text>
+        </View>
+      );
     }
     
-    videoRefs[viewType] = useRef(null);
-    return videoRefs[viewType];
-  };
-
-  const renderVideoContainer = (viewType: string, url: string | undefined) => {
-    if (!url) return null;
-    
-    let label = viewType === 'other' ? 'Exercise Video' : `${viewType.charAt(0).toUpperCase() + viewType.slice(1)} View`;
-    
-    const videoRef = getVideoRef(viewType);
+    let label = videoType === 'other' ? 'Exercise Video' : 
+               `${videoType.charAt(0).toUpperCase() + videoType.slice(1)} View`;
     
     return (
-      <View style={styles.videoContainer} key={viewType}>
-        <Text style={styles.videoLabel}>{label}</Text>
-        {isYouTubeUrl(url) 
-          ? renderYouTubeVideo(url)
-          : isVimeoUrl(url) 
-            ? renderVimeoVideo(url)
-            : renderNormalVideo(url, videoRef)
-        }
+      <View style={styles.videoContainer}>
+        <View style={styles.labelContainer}>
+          <Text style={styles.videoLabel}>{label}</Text>
+          <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+            <Text style={styles.refreshText}>↻ Reload</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.videoWrapper}>
+          {videoLoading && (
+            <View style={styles.videoLoadingOverlay}>
+              <ActivityIndicator size="large" color="#6E49EB" />
+              <Text style={styles.videoLoadingText}>Loading video...</Text>
+            </View>
+          )}
+          
+          {isYouTubeUrl(mainVideoUrl) 
+            ? renderYouTubeVideo(mainVideoUrl)
+            : isVimeoUrl(mainVideoUrl) 
+              ? renderVimeoVideo(mainVideoUrl)
+              : <VideoView 
+                  style={styles.vwVideo}  
+                  player={player}
+                  allowsFullscreen
+                  allowsPictureInPicture
+                />
+          }
+        </View>
       </View>
     );
   };
-
-  const hasVideos = videoData && Object.keys(videoData).some(key => Boolean(videoData[key]));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -240,24 +288,10 @@ const ExcercisePreview = () => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#6E49EB" />
-            <Text style={styles.loadingText}>Loading videos...</Text>
+            <Text style={styles.loadingText}>Loading exercise data...</Text>
           </View>
-        ) : hasVideos ? (
-          // Render all available videos
-          <>
-            {videoData.front && renderVideoContainer('front', videoData.front)}
-            {videoData.side && renderVideoContainer('side', videoData.side)}
-            {videoData.other && renderVideoContainer('other', videoData.other)}
-            {Object.keys(videoData).filter(key => !['front', 'side', 'other'].includes(key)).map(key => 
-              renderVideoContainer(key, videoData[key])
-            )}
-          </>
         ) : (
-          <View style={styles.videoContainer}>
-            <View style={styles.videoError}>
-              <Text style={styles.videoErrorText}>No videos available for this exercise</Text>
-            </View>
-          </View>
+          renderMainVideo()
         )}
         
         <View style={styles.descriptionContainer}>
@@ -300,16 +334,53 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     alignItems: 'center',
   },
+  labelContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: Dimensions.get("window").width * 0.9,
+    marginBottom: 5,
+  },
+  refreshButton: {
+    padding: 5,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+  },
+  refreshText: {
+    color: '#6E49EB',
+    fontWeight: '500',
+    fontSize: 14,
+    marginHorizontal: 20
+  },
+  videoWrapper: {
+    position: 'relative',
+    width: Dimensions.get("window").width * 0.9,
+    height: 170,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  videoLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderRadius: 8,
+  },
+  videoLoadingText: {
+    color: 'white',
+    marginTop: 10,
+    
+  },
   videoLabel: {
     fontSize: 16,
     fontWeight: '500',
-    marginBottom: 5,
     color: '#6E49EB',
-  },
-  video: {
-    width: videoWidth,
-    height: videoHeight,
-    borderRadius: 8,
+    marginHorizontal: 20
   },
   videoError: {
     width: videoWidth,
@@ -343,6 +414,11 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     color: '#666',
+  },
+  vwVideo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
 });
 
