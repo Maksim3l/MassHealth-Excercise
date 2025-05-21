@@ -89,7 +89,7 @@ const ExcercisePreview = () => {
           
           // Try to find a video in the preferred order
           for (const key of preferredOrder) {
-            if (parsed[key] && typeof parsed[key] === 'string' && !isYouTubeUrl(parsed[key]) && !isVimeoUrl(parsed[key])) {
+            if (parsed[key] && typeof parsed[key] === 'string') {
               console.log(`Using ${key} video:`, parsed[key]);
               setMainVideoUrl(parsed[key]);
               setVideoType(key);
@@ -103,7 +103,7 @@ const ExcercisePreview = () => {
             const keys = Object.keys(parsed);
             for (const key of keys) {
               const url = parsed[key];
-              if (url && typeof url === 'string' && !isYouTubeUrl(url) && !isVimeoUrl(url)) {
+              if (url && typeof url === 'string') {
                 console.log(`Using ${key} video:`, url);
                 setMainVideoUrl(url);
                 setVideoType(key);
