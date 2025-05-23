@@ -1,12 +1,16 @@
 import { View, Text, StyleSheet } from 'react-native'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import  ActivityIcon  from '../../../assets/tsxicons/activitynavbaricon'
 import Value from '../../../components/Value'
 import RingProgress from '../../../components/RingProgress'
+import BrokenHealthKit, { HealthInputOptions, HealthKitPermissions, HealthUnit } from "react-native-health";
+import useHealthData from '../../../hooks/useHealthData'
 
 
+const STEP_GOAL = 10000
 const Activity = () => {
+  const {steps, flights, distance} = useHealthData({ date: new Date(2025, 5, 21) });
   return (
 
     <SafeAreaView style={styles.container}>
@@ -14,12 +18,12 @@ const Activity = () => {
         <ActivityIcon color={'#6E49EB'} fill={'white'} />
         <Text style={styles.sectionTitleText}>Activity</Text>
       </View>
-      <RingProgress radius={130} strokeWidth={50} progress={0.3} />
+      <RingProgress radius={130} strokeWidth={50} progress={steps / STEP_GOAL} />
 
       <View style={styles.values}>
-       <Value label="Steps" value="1219"></Value>
-       <Value label="Distance" value="0,75 km"></Value>
-      <Value label="Flights climbed" value="12"></Value>
+       <Value label="Steps" value={steps.toString()}></Value>
+       <Value label="Distance" value={`${(distance / 1000).toFixed()} km`}></Value>
+      <Value label="Flights climbed" value={flights.toString()}></Value>
 
 
       </View>

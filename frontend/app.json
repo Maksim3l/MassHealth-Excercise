@@ -18,7 +18,8 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "expo-video"
+      "expo-video",
+      "react-native-health"
     ],
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
