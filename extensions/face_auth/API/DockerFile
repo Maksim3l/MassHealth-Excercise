@@ -1,0 +1,24 @@
+FROM python:3.9-slim
+
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app.py .
+RUN mkdir -p /app/models
+COPY face_verification.h5 /app/models/
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:5000/health || exit 1
+
+CMD ["python", "face_auth_api.py"]
