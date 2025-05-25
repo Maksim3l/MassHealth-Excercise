@@ -89,7 +89,6 @@ const home = () => {
                   <FireIcon />
                 </View>
               </View>
-              <Text style={styles.healthValue}>1.4K kCal</Text>
             </View>
             <View style={styles.healthbox}>
               <View style={styles.iconHeader}>
@@ -98,7 +97,6 @@ const home = () => {
                   <SleepIcon />
                 </View>
               </View>
-              <Text style={styles.healthValue}>8.5 hours</Text>
             </View>
           </View>
         </View>

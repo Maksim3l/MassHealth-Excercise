@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
     
   },
   value: {
-    fontSize: 45,
+    fontSize: 32,
     fontWeight: 500,
   },
 
