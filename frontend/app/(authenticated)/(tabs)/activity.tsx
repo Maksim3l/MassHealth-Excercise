@@ -9,7 +9,7 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 //NUJNOO!! glede na OS se importa ustrezni hook
 //import useHealthDataios from '../../../hooks/useHealthDataios'
 import useHealthData from '../../../hooks/useHealthData'
-
+//
 //EXPO GO USERS!! zakomentiraj hooks in rocno nastavi steps, flights, distance
 
 const STEP_GOAL = 10000
@@ -33,7 +33,7 @@ const Activity = () => {
   
   // NUJNO!! GLEDE NA OS KLICI PRAVI HEALTH DATA
   if (Platform.OS === 'ios') {
-    // When you have iOS hook ready, use it here
+    //When you have iOS hook ready, use it here
     //steps = iosHealthData.steps;
     //flights = iosHealthData.flights;
     //distance = iosHealthData.distance;
@@ -74,7 +74,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     justifyContent: 'flex-start',
-    padding: 12
   },
   sectionTitle: { 
     flexDirection: 'row', 

@@ -31,6 +31,8 @@ const useHealthData = (date: Date) => {
           { accessType: 'read', recordType: 'Steps' },
           { accessType: 'read', recordType: 'Distance' },
           { accessType: 'read', recordType: 'FloorsClimbed' },
+          { accessType: 'read', recordType: 'ActiveCaloriesBurned'},
+          { accessType: 'read', recordType: 'SleepSession'}
         ]);
       } catch (error) {
         console.error("Permission request error:", error);
@@ -54,6 +56,8 @@ const useHealthData = (date: Date) => {
     setSteps(0);
     setFlights(0);
     setDistance(0);
+    setEnergy(0);
+    setSleep(0);
 
     // Steps with error handling
     try {
@@ -90,6 +94,33 @@ const useHealthData = (date: Date) => {
     } catch (floorError) {
       console.error("Error reading floors:", floorError);
     }
+
+    try{
+      const hoursSlept = await readRecords('SleepSession', { timeRangeFilter});
+      if (hoursSlept && hoursSlept.records && hoursSlept.records.length > 0) {
+        const totalHoursSlept = hoursSlept.records.reduce((sum, cur) => {
+          const startTime = new Date(cur.startTime).getTime();
+          const endTime = new Date(cur.endTime).getTime();
+          const durationHours = (endTime - startTime) / (1000 * 60 * 60); // Convert ms to hours
+          return sum + durationHours;
+        }, 0);
+        setSleep(totalHoursSlept);
+      }
+    } catch(sleepError) {
+        console.error("Error reading sleep:", sleepError);
+    }
+
+    try{
+      const caloriesBurned = await readRecords('ActiveCaloriesBurned', { timeRangeFilter });
+      if (caloriesBurned && caloriesBurned.records && caloriesBurned.records.length > 0) {
+        const totalCalories = caloriesBurned.records.reduce((sum, cur) => {
+          return sum + cur.energy.inKilocalories;
+        }, 0);
+        setEnergy(totalCalories);
+      }
+    } catch(calorieError) {
+        console.error("Error reading calories burned:", calorieError);
+    }
   } catch (error) {
     console.error("Error in readSampleData:", error);
   }
@@ -118,6 +149,8 @@ const useHealthData = (date: Date) => {
             { accessType: 'read', recordType: 'Steps' },
             { accessType: 'read', recordType: 'Distance' },
             { accessType: 'read', recordType: 'FloorsClimbed' },
+            { accessType: 'read', recordType: 'ActiveCaloriesBurned'},
+            { accessType: 'read', recordType: 'SleepSession'}
           ]);
           //console.log("Permissions granted:", JSON.stringify(grantedPermissions));
         } catch (permError) {

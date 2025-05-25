@@ -1,11 +1,15 @@
-import { View, Text, SafeAreaView, StyleSheet, Image, Dimensions, ScrollView } from 'react-native';
+import { View, Text, SafeAreaView, StyleSheet, Image, Dimensions, ScrollView, Platform } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import HomeIcon from '../../../assets/tsxicons/homenavbaricon';
 import FireIcon from '../../../assets/tsxicons/fireicon';
 import SleepIcon from '../../../assets/tsxicons/sleepicon';
 import CustomDate from '../../../components/date';
 import { supabase } from '../../../utils/supabase';
-import CustomAlert from '../../../components/CustomAlert';  // <-- import your custom alert
+import CustomAlert from '../../../components/CustomAlert';  
+//import useHealthDataios from '../../../hooks/useHealthDataios'
+import useHealthData from '../../../hooks/useHealthData'
+//EXPO GO USERS!! zakomentiraj hooks in rocno nastavi steps, flights, distance
+
 
 const width = Dimensions.get('window').width;
 const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -14,6 +18,11 @@ const home = () => {
   const [profile, setProfile] = useState({ name: '', username: '' });
   const [customAlertVisible, setCustomAlertVisible] = useState(false);
   const [customAlertMessage, setCustomAlertMessage] = useState('');
+  const [date, setDate] = useState(new Date());
+
+  const androidHealthData = useHealthData(date);
+  //const iosHealthData = useHealthDataios(date)
+  
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -56,6 +65,21 @@ const home = () => {
     };
   });
 
+  let sleep = 0
+  let calories = 0
+
+  if (Platform.OS === 'ios') {
+      //When you have iOS hook ready, use it here
+      //sleep = iosHealthData.sleepingHours;
+      //calories = iosHealthData.calories;
+    } else if (Platform.OS === 'android') {
+      //steps = androidHealthData.steps;
+      //flights = androidHealthData.flights;
+      //distance = androidHealthData.distance;
+      sleep = androidHealthData.sleep
+      calories = androidHealthData.energy
+    }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -89,6 +113,7 @@ const home = () => {
                   <FireIcon />
                 </View>
               </View>
+              <Text style={styles.healthValue}>{calories}</Text>
             </View>
             <View style={styles.healthbox}>
               <View style={styles.iconHeader}>
@@ -97,6 +122,7 @@ const home = () => {
                   <SleepIcon />
                 </View>
               </View>
+             <Text style={styles.healthValue}>{sleep}</Text>
             </View>
           </View>
         </View>
@@ -194,8 +220,9 @@ const styles = StyleSheet.create({
   description: {
     fontWeight: '500',
     fontSize: 20,
-    flexShrink: 1,
-    maxWidth: '75%' 
+    flexShrink: 2,
+    maxWidth: '75%',
+    flexDirection: 'column'
   },
   iconContainer: {
     padding: 2, 
