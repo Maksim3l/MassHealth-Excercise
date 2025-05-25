@@ -15,7 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 RUN mkdir -p /app/models
-COPY face_verification.h5 /app/models/
+COPY face_verification_v2.h5 /API/models/
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \

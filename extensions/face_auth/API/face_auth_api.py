@@ -7,6 +7,8 @@ from io import BytesIO
 import base64
 from PIL import Image
 import os
+from tensorflow.keras.layers import Layer
+
 
 app = Flask(__name__)
 
@@ -17,19 +19,52 @@ class L1Dist(tf.keras.layers.Layer):
     def call(self, input_embedding, validation_embedding):
         return tf.math.abs(input_embedding - validation_embedding)
 
-MODEL_PATH = '../face_verificator'
+class EuclideanDistance(Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    
+    def call(self, inputs):
+        anchor, comparison = inputs
+        return tf.sqrt(tf.reduce_sum(tf.square(anchor - comparison), axis=-1, keepdims=True))
+
+class ContrastiveLoss(tf.keras.losses.Loss):
+    def __init__(self, margin=1.0, **kwargs):
+        super().__init__(**kwargs)
+        self.margin = margin
+    
+    def call(self, y_true, y_pred):
+        y_true = tf.cast(y_true, tf.float32) 
+        loss = y_true * tf.square(y_pred) + \
+               (1 - y_true) * tf.square(tf.maximum(0.0, self.margin - y_pred))
+        return tf.reduce_mean(loss)
+
+class Cast(Layer):
+    def __init__(self, dtype=tf.float32, **kwargs):
+        super(Cast, self).__init__(**kwargs)
+        self.dtype_to_cast = dtype
+
+    def call(self, inputs):
+        return tf.cast(inputs, self.dtype_to_cast)
+
+MODEL_PATH = 'models/face_verification.h5'
+
 model = None
 
 def load_model():
     global model
     try:
-        model = tf.keras.models.load_model(
-            MODEL_PATH, 
-            custom_objects={
-                'L1Dist': L1Dist, 
-                'BinaryCrossentropy': tf.losses.BinaryCrossentropy
-            }
-        )
+        custom_objects = {
+            'L1Dist': L1Dist,
+            'EuclideanDistance': EuclideanDistance,
+            'ContrastiveLoss': ContrastiveLoss,
+            'Cast': Cast,
+            'BinaryCrossentropy': tf.losses.BinaryCrossentropy,
+            'cast': tf.cast, 
+            'l2_normalize': tf.nn.l2_normalize,
+        }
+        
+        with tf.keras.utils.custom_object_scope(custom_objects):
+            model = load_model(model_path, compile=False)
         print("✅ Model loaded successfully")
     except Exception as e:
         print(f"❌ Error loading model: {e}")
