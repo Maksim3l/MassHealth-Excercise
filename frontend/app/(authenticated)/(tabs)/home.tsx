@@ -10,7 +10,6 @@ import CustomAlert from '../../../components/CustomAlert';
 import useHealthData from '../../../hooks/useHealthData'
 //EXPO GO USERS!! zakomentiraj hooks in rocno nastavi steps, flights, distance
 
-
 const width = Dimensions.get('window').width;
 const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -18,12 +17,13 @@ const home = () => {
   const [profile, setProfile] = useState({ name: '', username: '' });
   const [customAlertVisible, setCustomAlertVisible] = useState(false);
   const [customAlertMessage, setCustomAlertMessage] = useState('');
-  const [date, setDate] = useState(new Date());
+  // Initialize with today's date
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const androidHealthData = useHealthData(date);
-  //const iosHealthData = useHealthDataios(date)
+  // Use selectedDate instead of the fixed date
+  const androidHealthData = useHealthData(selectedDate);
+  //const iosHealthData = useHealthDataios(selectedDate)
   
-
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -55,18 +55,33 @@ const home = () => {
 
   const today = new Date();
   const todayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1; // Monday = 0, Sunday = 6
+  
+  // Create week dates
   const weekDates = dayNames.map((_, index) => {
     const date = new Date();
     date.setDate(today.getDate() - todayIndex + index);
+    // Set time to start of day 
+    date.setHours(0, 0, 0, 0);
+    
+    const selectedDateNormalized = new Date(selectedDate);
+    selectedDateNormalized.setHours(0, 0, 0, 0);
+    
     return {
       day: dayNames[index],
       dayOfMonth: date.getDate(),
-      isToday: index === todayIndex,
+      fullDate: date,
+      isToday: date.getTime() === new Date().setHours(0, 0, 0, 0),
+      isSelected: date.getTime() === selectedDateNormalized.getTime(),
     };
   });
 
-  let sleep = 0
-  let calories = 0
+  // Handler for date selection
+  const handleDatePress = (date: Date) => {
+    setSelectedDate(date);
+  };
+
+  let sleep = 0;
+  let calories = 0;
 
   if (Platform.OS === 'ios') {
       //When you have iOS hook ready, use it here
@@ -76,8 +91,8 @@ const home = () => {
       //steps = androidHealthData.steps;
       //flights = androidHealthData.flights;
       //distance = androidHealthData.distance;
-      sleep = androidHealthData.sleep
-      calories = androidHealthData.energy
+      sleep = androidHealthData.sleep;
+      calories = androidHealthData.energy;
     }
 
   return (
@@ -104,6 +119,10 @@ const home = () => {
         <View style={styles.health}>
           <View style={styles.currentExerciseContainer}>
             <Text style={styles.currentExerciseText}>Health Overview</Text>
+            {/* Show selected date in health section */}
+            <Text style={styles.selectedDateText}>
+              {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </Text>
           </View>
           <View style={styles.healthsection}>
             <View style={styles.healthbox}>
@@ -128,8 +147,15 @@ const home = () => {
         </View>
 
         <View style={{ flexDirection: 'row', justifyContent: 'center', margin: 10 }}>
-          {weekDates.map(({ day, dayOfMonth, isToday }) => (
-            <CustomDate key={day} day={day} dayOfMonth={dayOfMonth} isToday={isToday} />
+          {weekDates.map(({ day, dayOfMonth, fullDate, isToday, isSelected }) => (
+            <CustomDate 
+              key={day} 
+              day={day} 
+              dayOfMonth={dayOfMonth} 
+              isToday={isToday}
+              isSelected={isSelected}
+              onPress={() => handleDatePress(fullDate)}
+            />
           ))}
         </View>
       </ScrollView>
@@ -198,9 +224,11 @@ const styles = StyleSheet.create({
     },
   healthtitletext: {
     fontWeight: '500',
-    fontSize: 24 },
+    fontSize: 24 
+  },
   healthsection: {
-     flexDirection: 'row', justifyContent: 'space-between'
+     flexDirection: 'row', 
+     justifyContent: 'space-between'
     },
   healthbox: {
     width: width / 2 - 25,
@@ -227,8 +255,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     padding: 2, 
     marginLeft: 5
-     },
-
+  },
   healthValue: {
     fontSize: 16,
     fontWeight: '600',
@@ -239,11 +266,19 @@ const styles = StyleSheet.create({
     marginTop: 10,
     backgroundColor: '#6E49EB',
     paddingHorizontal: 8, 
-    paddingVertical: 4 
+    paddingVertical: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
   currentExerciseText: {
     color: 'white',
     fontSize: 20 
+  },
+  selectedDateText: {
+    color: 'white',
+    fontSize: 14,
+    opacity: 0.8
   },
 });
 
