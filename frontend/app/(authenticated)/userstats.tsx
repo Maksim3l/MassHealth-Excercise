@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TextInput, Alert } from 'react-native'
+import { View, Text, StyleSheet, TextInput, Alert, ScrollView } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import OptionButton from '../../components/optionbutton'
@@ -89,6 +89,8 @@ const UserStats = () => {
                     Let us help u with fitness goals and nutrition.
                 </Text>
             </View>
+            <ScrollView>
+
             <View style={styles.questions}>
                 <Text   >
                     What Sex are you?
@@ -159,10 +161,12 @@ const UserStats = () => {
                 </View>
                       
             </View>
+            </ScrollView>
 
         <View style={styles.continueButton}>
             <DefButton text="Continue" onPress={() => handleContinue()} />
         </View>
+    
         </SafeAreaView>
   )
 }
@@ -182,7 +186,7 @@ const styles = StyleSheet.create({
 
     },
     description: {
-        marginVertical: 15,
+        marginVertical: 10,
         marginHorizontal: 20,
         justifyContent: 'center',
         alignItems: 'center',   
