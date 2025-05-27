@@ -6,6 +6,9 @@ extensions/face_auth/tensorflow_env/
 extensions/face_auth/data/
 extensions/face_auth/training_checkpoints/
 
+ios
+android
+
 # Expo
 .expo/
 dist/

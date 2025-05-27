@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Paho from 'paho-mqtt';
 
@@ -17,8 +17,12 @@ const GlobalDataProvider: React.FC<{children: React.ReactNode}> = ({ children })
           
           console.log('Restored user data:', { userId, username });
           
-          // Optionally reconnect to MQTT if needed
-          reconnectMQTT(userId, username);
+          // Check if MQTT is already connected
+          if (!global.mqttClient || !global.mqttClient.isConnected()) {
+            reconnectMQTT(userId, username);
+          } else {
+            console.log('MQTT already connected, skipping reconnect');
+          }
         }
       } catch (error) {
         console.error('Error restoring user data', error);
@@ -30,18 +34,24 @@ const GlobalDataProvider: React.FC<{children: React.ReactNode}> = ({ children })
   
   // Function to reconnect to MQTT if needed
   const reconnectMQTT = (userId: string, username: string) => {
-    // Only reconnect if we're not already connected
+    // First ensure we don't already have a connection
     if (global.mqttClient && global.mqttClient.isConnected()) {
-      console.log('MQTT already connected');
-      return;
+      console.log('MQTT already connected, disconnecting first');
+      try {
+        global.mqttClient.disconnect();
+      } catch (error) {
+        console.error('Error disconnecting existing MQTT client:', error);
+      }
     }
     
     try {
-      // Create a unique client ID
-      const clientId = `user_${userId}_${Math.random().toString(16).substr(2, 8)}`;
-      const client = new Paho.Client('192.168.1.45', 9001, clientId);
+      // Create a unique client ID with timestamp to prevent duplicates
+      const timestamp = new Date().getTime();
+      const clientId = `user_${userId}_${timestamp}_${Math.random().toString(16).substr(2, 8)}`;
+      console.log('Creating new MQTT client with ID:', clientId);
       
-      // Set up callbacks
+      const client = new Paho.Client('164.8.222.74', 9001, clientId);
+      
       client.onConnectionLost = (responseObject: Paho.MQTTError) => {
         if (responseObject.errorCode !== 0) {
           console.log("Connection lost:", responseObject.errorMessage);
@@ -54,7 +64,6 @@ const GlobalDataProvider: React.FC<{children: React.ReactNode}> = ({ children })
           console.log("Reconnected to MQTT broker with client ID:", clientId);
           global.mqttClient = client;
           
-          // Subscribe to all user location topics
           client.subscribe('users/+/location', { qos: 0 });
           
           // Publish presence message
@@ -65,7 +74,6 @@ const GlobalDataProvider: React.FC<{children: React.ReactNode}> = ({ children })
             timestamp: new Date().toISOString()
           };
           
-          // Create and send presence message with retained flag
           const presenceMessage = new Paho.Message(JSON.stringify(connectMessage));
           presenceMessage.destinationName = `users/${userId}/presence`;
           presenceMessage.qos = 0;
@@ -84,7 +92,6 @@ const GlobalDataProvider: React.FC<{children: React.ReactNode}> = ({ children })
     }
   };
   
-  // Just render children, no UI for this component
   return <>{children}</>;
 };
 

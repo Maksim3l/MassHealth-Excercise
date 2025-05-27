@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import * as Paho from 'paho-mqtt';
+import CustomAlert from '../../components/CustomAlert';
+import { supabase } from '../../utils/supabase';
 
 interface LocationData {
   latitude: number;
@@ -208,6 +210,52 @@ const Map: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [otherUserLocations, setOtherUserLocations] = useState<UserLocation[]>([]);
   const [lastSeenTimes, setLastSeenTimes] = useState<{[userId: string]: number}>({});
+  const [customAlertVisible, setCustomAlertVisible] = useState(false);
+  const [customAlertMessage, setCustomAlertMessage] = useState('');
+  const [friendIds, setFriendIds] = useState<string[]>([]);
+  // Add a state to track when we're ready to publish
+  const [readyToPublish, setReadyToPublish] = useState(false);
+
+  const fetchFriends = async () => {
+    try {
+      const { data: currentUser } = await supabase.auth.getUser();
+  
+      if (!currentUser?.user?.id) {
+        throw new Error('Not authenticated');
+      }
+  
+      // Get all accepted connections where this user is either sender or receiver
+      const { data: sentConnections, error: sentError } = await supabase
+        .from('friend_connections')
+        .select('receiver_id')
+        .eq('sender_id', currentUser.user.id)
+        .eq('status', 'accepted');
+        
+      if (sentError) throw sentError;
+      
+      const { data: receivedConnections, error: receivedError } = await supabase
+        .from('friend_connections')
+        .select('sender_id')
+        .eq('receiver_id', currentUser.user.id)
+        .eq('status', 'accepted');
+        
+      if (receivedError) throw receivedError;
+      
+      // Extract friend IDs
+      const sentFriendIds = sentConnections.map(conn => conn.receiver_id);
+      const receivedFriendIds = receivedConnections.map(conn => conn.sender_id);
+      
+      // Combine both arrays and store in state
+      setFriendIds([...sentFriendIds, ...receivedFriendIds]);
+      console.log('Fetched friend IDs:', [...sentFriendIds, ...receivedFriendIds]);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchFriends();
+  }, []);
   
   // Debug effect to check global variables
   useEffect(() => {
@@ -279,61 +327,70 @@ const Map: React.FC = () => {
       }
     };
   }, []);
-  
-  // Publish location updates via MQTT
+
+  // Check if we're ready to publish location data
   useEffect(() => {
-    const client = global.mqttClient;
-
-    if (client && client.isConnected() && userLocation) {
-      try {
-        // Use a fallback if username is undefined
-        const safeUsername = global.username || `user-${global.userId?.substring(0, 8)}` || 'anonymous';
-        
-        const locationMessage = {
-          userId: global.userId,
-          username: safeUsername,
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          timestamp: new Date().toISOString(),
-          accuracy: userLocation.accuracy
-        };
-
-        // Use a topic structure that includes the user ID
-        const topic = `users/${global.userId}/location`;
-        
-        const message = new Paho.Message(JSON.stringify(locationMessage));
-        message.destinationName = topic;
-        message.qos = 0;
-        message.retained = true; // Important: retain the message
-
-        client.send(message);
-        console.log('Location published to:', topic);
-      } catch(error) {
-        console.error('Error publishing location via MQTT', error);
-      }
+    // Verify all conditions are met before setting ready
+    if (
+      global.mqttClient && 
+      global.mqttClient.isConnected() && 
+      userLocation && 
+      global.userId
+    ) {
+      console.log("All conditions for publishing are met");
+      setReadyToPublish(true);
     } else {
-      console.log("Cannot publish location - MQTT conditions not met:", {
-        clientExists: !!client,
-        isConnected: client?.isConnected(),
-        hasLocation: !!userLocation
-      });
+      setReadyToPublish(false);
     }
   }, [userLocation]);
+  
+  // Publish location updates via MQTT - only when ready
+  useEffect(() => {
+    // Only attempt to publish when readyToPublish is true
+    if (!readyToPublish) return;
+    
+    const client = global.mqttClient;
+    
+    try {
+      // Use a fallback if username is undefined
+      const safeUsername = global.username || `user-${global.userId?.substring(0, 8)}` || 'anonymous';
+      
+      const locationMessage = {
+        userId: global.userId,
+        username: safeUsername,
+        latitude: userLocation!.latitude,
+        longitude: userLocation!.longitude,
+        timestamp: new Date().toISOString(),
+        accuracy: userLocation!.accuracy
+      };
+
+      // Use a topic structure that includes the user ID
+      const topic = `users/${global.userId}/location`;
+      
+      const message = new Paho.Message(JSON.stringify(locationMessage));
+      message.destinationName = topic;
+      message.qos = 0;
+      message.retained = true; // Important: retain the message
+
+      client?.send(message);
+      console.log('Location published successfully to:', topic);
+    } catch(error) {
+      console.error('Error publishing location via MQTT', error);
+    }
+  }, [readyToPublish, userLocation]);
 
   // Handle incoming MQTT messages
   useEffect(() => {
     const client = global.mqttClient;
-
+  
     if(client && client.isConnected()) {
       try {
-        // Subscribe to all user location topics
         client.subscribe('users/+/location', { qos: 0 });
         console.log('Subscribed to all user locations with wildcard');
-
-        // Create message handler
+  
         const messageHandler = (message: Paho.Message) => {
           try {
-            console.log("MQTT message received:", message.destinationName, message.payloadString);
+            //console.log("MQTT message received:", message.destinationName, message.payloadString);
             const topicParts = message.destinationName.split('/');
             
             // Make sure this is a location message
@@ -345,39 +402,44 @@ const Map: React.FC = () => {
               if(userId !== global.userId) {
                 const username = locationData.username || 'Unknown User';
                 
-                // Update last seen time for this user
-                setLastSeenTimes(prev => ({
-                  ...prev,
-                  [userId]: new Date().getTime()
-                }));
-                
-                setOtherUserLocations(prevLocations => {
-                  const existingIndex = prevLocations.findIndex(
-                    loc => loc.userId === userId
-                  );
+                // Only process messages from friends
+                if (friendIds.includes(userId)) {
+                  // Update last seen time for this user
+                  setLastSeenTimes(prev => ({
+                    ...prev,
+                    [userId]: new Date().getTime()
+                  }));
                   
-                  if (existingIndex !== -1) {
-                    // Update existing user's location
-                    const updatedLocations = [...prevLocations];
-                    updatedLocations[existingIndex] = {
-                      userId,
-                      username,
-                      latitude: locationData.latitude,
-                      longitude: locationData.longitude,
-                      timestamp: locationData.timestamp || new Date().toISOString()
-                    };
-                    return updatedLocations;
-                  } else {
-                    // Add new user location
-                    return [...prevLocations, {
-                      userId,
-                      username,
-                      latitude: locationData.latitude,
-                      longitude: locationData.longitude,
-                      timestamp: locationData.timestamp || new Date().toISOString()
-                    }];
-                  }
-                });
+                  setOtherUserLocations(prevLocations => {
+                    const existingIndex = prevLocations.findIndex(
+                      loc => loc.userId === userId
+                    );
+                    
+                    if (existingIndex !== -1) {
+                      // Update existing user's location
+                      const updatedLocations = [...prevLocations];
+                      updatedLocations[existingIndex] = {
+                        userId,
+                        username,
+                        latitude: locationData.latitude,
+                        longitude: locationData.longitude,
+                        timestamp: locationData.timestamp || new Date().toISOString()
+                      };
+                      return updatedLocations;
+                    } else {
+                      // Add new user location
+                      return [...prevLocations, {
+                        userId,
+                        username,
+                        latitude: locationData.latitude,
+                        longitude: locationData.longitude,
+                        timestamp: locationData.timestamp || new Date().toISOString()
+                      }];
+                    }
+                  });
+                } else {
+                  console.log(`Filtering out non-friend user: ${userId}`);
+                }
               }
             }
           } catch(e) {
@@ -385,7 +447,6 @@ const Map: React.FC = () => {
           }
         };
         
-        // Set the message handler
         client.onMessageArrived = messageHandler;
       } catch(error) {
         console.error('Error setting up MQTT message handler:', error);
@@ -396,14 +457,14 @@ const Map: React.FC = () => {
         isConnected: client?.isConnected()
       });
     }
-
+  
     return () => {
       if(client && client.isConnected()) {
         client.unsubscribe('users/+/location');
         console.log('Unsubscribed from user locations');
       }
     };
-  }, []);
+  }, [friendIds]); // Add friendIds as a dependency
 
   // Clean up stale user data
   useEffect(() => {
@@ -619,7 +680,8 @@ const Map: React.FC = () => {
                 }
               `);
             } else {
-              Alert.alert('Location not available', 'Please enable location services and try again.');
+              //setCustomAlertMessage('Location not available');
+              //setCustomAlertVisible(true);
             }
           }}
         >
@@ -634,6 +696,12 @@ const Map: React.FC = () => {
           </View>
         )}
       </SafeAreaView>
+      <CustomAlert
+        visible={customAlertVisible}
+        title="Error"
+        message={customAlertMessage}
+        onClose={() => setCustomAlertVisible(false)}
+      />
     </View>
   );
 }

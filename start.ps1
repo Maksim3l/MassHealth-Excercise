@@ -265,6 +265,15 @@ function Start-Frontend {
     Write-Host "New console launched running 'npx expo start --tunnel'" -ForegroundColor Green
 }
 
+function Start-Extras {
+    Write-Host "Starting Extra services..." -ForegroundColor Cyan
+    Push-Location ".\mosquitto"
+    docker compose up -d
+    Pop-Location
+    Write-Host "Mosquitto service started" -ForegroundColor Green
+}
+
+
 function Restart-Backend {
     Write-Host "Restarting backend..." -ForegroundColor Cyan
     Push-Location ".\backend\supabase-project"
@@ -272,6 +281,16 @@ function Restart-Backend {
     docker compose up -d
     Pop-Location
     Write-Host "Backend restarted." -ForegroundColor Green
+}
+
+function Restart-Extras {
+    Write-Host "Restarting extra services..." -ForegroundColor Cyan
+    Push-Location ".\mosquitto"
+    docker compose down
+    docker compose up -d
+    Pop-Location
+    Write-Host "Successfuly restarted MQTT"
+    Write-Host "Extra services restarted." -ForegroundColor Green
 }
 
 function Restart-Frontend {
@@ -317,6 +336,17 @@ if ($startBackend -eq "y" -or $startBackend -eq "Y") {
 }
 
 Write-Host ""
+Write-Host "Extra services available:"
+Write-Host " - MQTT docker service"
+Write-Host " - Face Auth service (WIP)"
+$startExtras = Read-Host "Do you want to start the extra services? (y/n)"
+if ($startExtras -eq "y" -or $startExtras -eq "Y") {
+    Start-Extras
+} else {
+    Write-Host "Skipping Extra services." -ForegroundColor Yellow
+}
+
+Write-Host ""
 $startFrontend = Read-Host "Do you want to start the Expo frontend? (y/n)"
 if ($startFrontend -eq "y" -or $startFrontend -eq "Y") {
     Start-Frontend
@@ -355,6 +385,10 @@ while ($true) {
         Push-Location ".\backend\supabase-project"
         docker compose down
         Pop-Location
+
+        Push-Location ".\mosquitto"
+        docker compose down
+        Pop-Location
         
         Write-Host "Shutdown complete. Exiting..." -ForegroundColor Green
         break
@@ -362,7 +396,10 @@ while ($true) {
         Restart-Backend
     } elseif ($option -eq "rf") {
         Restart-Frontend
-    } elseif ($option -eq "r") {
+    } elseif ($option -eq "re") {
+        Restart-Extras
+    }
+     elseif ($option -eq "r") {
         Write-Host "Restarting both frontend and backend..." -ForegroundColor Cyan
         Restart-Frontend
         Restart-Backend

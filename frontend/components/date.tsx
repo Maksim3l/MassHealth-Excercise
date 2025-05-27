@@ -7,15 +7,42 @@ const height = Dimensions.get('window').height;
 interface dateProps {
   day: string;
   dayOfMonth: number;
-  isToday?: boolean; 
+  isToday?: boolean;
+  isSelected?: boolean;
+  onPress: () => void;
 }
 
-const CustomDate: React.FC<dateProps> = ({ day, dayOfMonth, isToday }) => {
+const CustomDate: React.FC<dateProps> = ({ 
+  day, 
+  dayOfMonth, 
+  isToday, 
+  isSelected = false, 
+  onPress 
+}) => {
   return (
-    <Pressable style={[styles.container, isToday && styles.todayContainer]}>
+    <Pressable 
+      style={[
+        styles.container, 
+        isToday && styles.todayContainer,
+        isSelected && styles.selectedContainer,
+      ]}
+      onPress={onPress}
+    >
       <View style={styles.dateContainer}>
-        <Text style={[styles.dayText, isToday && styles.todayText]}>{day}</Text>
-        <Text style={[styles.dayOfMonthText, isToday && styles.todayText]}>{dayOfMonth}</Text>
+        <Text style={[
+          styles.dayText, 
+          isToday && styles.todayText,
+          isSelected && styles.selectedText,
+        ]}>
+          {day}
+        </Text>
+        <Text style={[
+          styles.dayOfMonthText, 
+          isToday && styles.todayText,
+          isSelected && styles.selectedText,
+        ]}>
+          {dayOfMonth}
+        </Text>
       </View>
     </Pressable>
   );
@@ -31,7 +58,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   todayContainer: {
-    borderColor: '#6E49EB', 
+    borderColor: '#6E49EB',
+  },
+  selectedContainer: {
+    backgroundColor: '#E8E0FF',
+    borderColor: '#6E49EB',
+    borderWidth: 2,
   },
   dateContainer: {
     flexDirection: 'column',
@@ -48,6 +80,10 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   todayText: {
+    color: '#6E49EB',
+    fontWeight: '700',
+  },
+  selectedText: {
     color: '#6E49EB',
     fontWeight: '700',
   },
