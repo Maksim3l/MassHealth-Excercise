@@ -132,3 +132,33 @@ To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
 1746978230: Saving in-memory database to /mosquitto/data//mosquitto.db.
 1746979345: Client user_fa639f5a-b0c0-46e6-b64d-41653560cfe3_fb1dce98 closed its connection.
 1746979406: New client connected from ::ffff:172.18.0.1:52684 as user_fa639f5a-b0c0-46e6-b64d-41653560cfe3_ab0d96b0 (p2, c1, k60).
+1748364210: mosquitto version 2.0.21 starting
+1748364210: Config loaded from /mosquitto/config/mosquitto.conf.
+1748364210: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748364210: Opening ipv4 listen socket on port 1883.
+1748364210: Opening ipv6 listen socket on port 1883.
+1748364210: Opening websockets listen socket on port 9001.
+1748364210: mosquitto version 2.0.21 running
+1748364567: mosquitto version 2.0.21 terminating
+1748364567: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748364662: mosquitto version 2.0.21 starting
+1748364662: Config loaded from /mosquitto/config/mosquitto.conf.
+1748364662: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748364662: Opening ipv4 listen socket on port 1883.
+1748364662: Opening ipv6 listen socket on port 1883.
+1748364662: Opening websockets listen socket on port 9001.
+1748364662: mosquitto version 2.0.21 running
+1748364738: mosquitto version 2.0.21 terminating
+1748364738: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748365554: mosquitto version 2.0.21 starting
+1748365554: Config loaded from /mosquitto/config/mosquitto.conf.
+1748365554: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748365554: Opening ipv4 listen socket on port 1883.
+1748365554: Opening ipv6 listen socket on port 1883.
+1748365554: Opening websockets listen socket on port 9001.
+1748365554: mosquitto version 2.0.21 running
+1748365722: mosquitto version 2.0.21 terminating
+1748365722: Saving in-memory database to /mosquitto/data//mosquitto.db.

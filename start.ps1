@@ -60,6 +60,92 @@ function Get-IPAddress {
     return $ipv4_address
 }
 
+function Get-ServiceIPs {
+    Write-Host "`n=== Service IP Configuration ===" -ForegroundColor Yellow
+    
+    # Supabase IP
+    Write-Host "Enter Supabase IP address (press Enter for Default:$global:ipAddress):" -ForegroundColor Cyan
+    $supabaseInput = Read-Host "Supabase IP "
+    
+    if ([string]::IsNullOrWhiteSpace($supabaseInput)) {
+        $global:supabaseIP = $global:ipAddress
+    } else {
+        if ($supabaseInput -match "^(localhost|(\d{1,3}\.){3}\d{1,3}|[\w\.-]+)$") {
+            $global:supabaseIP = $supabaseInput
+        } else {
+            Write-Host "Invalid IP format. Using default: $global:ipAddress" -ForegroundColor Yellow
+            $global:supabaseIP = $global:ipAddress
+        }
+    }
+    
+    # MQTT IP
+    Write-Host "Enter MQTT/Mosquitto IP address (press Enter for Default:$global:ipAddress):" -ForegroundColor Cyan
+    $mqttInput = Read-Host "MQTT IP"
+    
+    if ([string]::IsNullOrWhiteSpace($mqttInput)) {
+        $global:mqttIP = $global:ipAddress
+    } else {
+        if ($mqttInput -match "^(localhost|(\d{1,3}\.){3}\d{1,3}|[\w\.-]+)$") {
+            $global:mqttIP = $mqttInput
+        } else {
+            Write-Host "Invalid IP format. Using default: $global:ipAddress" -ForegroundColor Yellow
+            $global:mqttIP = $global:ipAddress
+        }
+    }
+    
+    Write-Host "`nConfiguration:" -ForegroundColor Green
+    Write-Host "- Supabase IP: $global:supabaseIP" -ForegroundColor White
+    Write-Host "- MQTT IP: $global:mqttIP" -ForegroundColor White
+}
+
+function Update-SupabaseFile {
+    $supabaseFile = Join-Path $PSScriptRoot "frontend\utils\supabase.ts"
+    
+    if (Test-Path $supabaseFile) {
+        $content = Get-Content $supabaseFile -Raw
+        Write-Host "Updating Supabase configuration with IP: $global:supabaseIP" -ForegroundColor Yellow
+
+        $pattern = '(process\.env\.EXPO_PUBLIC_SUPABASE_URL\s*\|\|\s*"http:\/\/)([\d\.]+:\d+)"'
+        $replacement = "`${1}$global:supabaseIP`:8000`""
+
+        $newContent = $content -replace $pattern, $replacement
+        
+        if ($newContent -match "http://$global:supabaseIP`:8000") {
+            Set-Content -Path $supabaseFile -Value $newContent -Force
+            Write-Host "Successfully updated Supabase URL to http://$global:supabaseIP`:8000" -ForegroundColor Green
+        } else {
+            Write-Host "Warning: Supabase IP replacement may not have worked correctly" -ForegroundColor Yellow
+            Write-Host "Please verify the content of $supabaseFile" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Error: Could not find $supabaseFile" -ForegroundColor Red
+    }
+}
+
+function Update-MQTTFile {
+    $mqttFile = Join-Path $PSScriptRoot "frontend\app\GlobalDataProvider.tsx"
+    
+    if (Test-Path $mqttFile) {
+        $content = Get-Content $mqttFile -Raw
+        Write-Host "Updating MQTT configuration with IP: $global:mqttIP" -ForegroundColor Yellow
+
+        $pattern = "(const client = new Paho\.Client\(')[^']+(',\s*9001,)"
+        $replacement = "`${1}$global:mqttIP`${2}"
+
+        $newContent = $content -replace $pattern, $replacement
+        
+        if ($newContent -match "new Paho\.Client\('$global:mqttIP', 9001,") {
+            Set-Content -Path $mqttFile -Value $newContent -Force
+            Write-Host "Successfully updated MQTT client to use IP: $global:mqttIP" -ForegroundColor Green
+        } else {
+            Write-Host "Warning: MQTT IP replacement may not have worked correctly" -ForegroundColor Yellow
+            Write-Host "Please verify the content of $mqttFile" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Error: Could not find $mqttFile" -ForegroundColor Red
+    }
+}
+
 function Backup-Database {
     Write-Host "Creating database backup..." -ForegroundColor Cyan
     
@@ -221,45 +307,19 @@ function Start-Supabase {
         }
     }
 }
+
 function Start-Frontend {
     Write-Host "Launching new console for Expo frontend..." -ForegroundColor Cyan
 
     $frontendPath = Join-Path $PSScriptRoot "frontend"
-    $supabaseFile = Join-Path $frontendPath "utils\supabase.ts"
     
-    # Make sure we have a valid IP
-    if (-not $global:ipAddress) {
-        $global:ipAddress = Get-IPAddress
-        if (-not $global:ipAddress) {
-            Write-Host "Error: Could not detect IP address" -ForegroundColor Red
-            return
-        }
-    }
+    # Update Supabase configuration
+    Update-SupabaseFile
+    
+    # Update MQTT configuration
+    Update-MQTTFile
 
-    if (Test-Path $supabaseFile) {
-        $content = Get-Content $supabaseFile -Raw
-        Write-Host "Current IP address: $global:ipAddress" -ForegroundColor Yellow
-
-        # More specific pattern that matches the entire URL string
-        $pattern = '(process\.env\.EXPO_PUBLIC_SUPABASE_URL\s*\|\|\s*"http:\/\/)([\d\.]+:\d+)"'
-        $replacement = "`${1}$global:ipAddress`:8000`""
-
-        $newContent = $content -replace $pattern, $replacement
-        
-        # Verify the replacement worked
-        if ($newContent -match "http://$global:ipAddress`:8000") {
-            Set-Content -Path $supabaseFile -Value $newContent -Force
-            Write-Host "Successfully updated Supabase URL to http://$global:ipAddress`:8000" -ForegroundColor Green
-        } else {
-            Write-Host "Warning: IP address replacement may not have worked correctly" -ForegroundColor Yellow
-            Write-Host "Please verify the content of $supabaseFile" -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "Error: Could not find $supabaseFile" -ForegroundColor Red
-        return
-    }
-
-    $command = "cd `"$frontendPath`" ; npx expo start --tunnel"
+    $command = "cd `"$frontendPath`" ; npx expo start"
     Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
 
     Write-Host "New console launched running 'npx expo start --tunnel'" -ForegroundColor Green
@@ -267,12 +327,44 @@ function Start-Frontend {
 
 function Start-Extras {
     Write-Host "Starting Extra services..." -ForegroundColor Cyan
+    
+    # Start Mosquitto
+    Write-Host "Starting Mosquitto service..." -ForegroundColor Cyan
     Push-Location ".\mosquitto"
-    docker compose up -d
-    Pop-Location
-    Write-Host "Mosquitto service started" -ForegroundColor Green
+    try {
+        docker compose up -d
+        Write-Host "Mosquitto service started successfully" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Error starting Mosquitto: $_" -ForegroundColor Red
+    }
+    finally {
+        Pop-Location
+    }
+    
+    Write-Host "Starting Face Authentication service..." -ForegroundColor Cyan
+    Push-Location ".\extensions\face_auth"
+    try {
+        $supabaseURL = "http://$global:supabaseIP`:8000"
+        
+        # Update .env file
+        $envContent = Get-Content .env
+        $envContent = $envContent -replace "SUPABASE_URL=.*", "SUPABASE_URL=$supabaseURL"
+        $envContent | Set-Content .env
+        
+        Write-Host "Updated .env with Supabase URL: $supabaseURL" -ForegroundColor Yellow
+        docker compose up -d
+        Write-Host "Face Authentication service started successfully" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Error starting Face Authentication: $_" -ForegroundColor Red
+    }
+    finally {
+        Pop-Location
+    }
+    
+    Write-Host "Extra services started" -ForegroundColor Green
 }
-
 
 function Restart-Backend {
     Write-Host "Restarting backend..." -ForegroundColor Cyan
@@ -289,7 +381,16 @@ function Restart-Extras {
     docker compose down
     docker compose up -d
     Pop-Location
-    Write-Host "Successfuly restarted MQTT"
+    Write-Host "Successfully restarted MQTT"
+    
+    Push-Location ".\extensions\face_auth"
+    docker compose down
+    $supabaseURL = "http://$global:supabaseIP`:8000"
+    $env:SUPABASE_URL = $supabaseURL
+    $env:SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q"
+    docker compose up -d
+    Pop-Location
+    Write-Host "Successfully restarted Face Auth"
     Write-Host "Extra services restarted." -ForegroundColor Green
 }
 
@@ -319,13 +420,16 @@ if (-not (Test-Path -Path ".\backend\data")) {
 
 $global:ipAddress = Get-IPAddress
 if ($global:ipAddress) {
-    Write-Host "IP address: $global:ipAddress" -ForegroundColor Green
+    Write-Host "Detected IP address: $global:ipAddress" -ForegroundColor Green
     [System.Environment]::SetEnvironmentVariable("REACT_NATIVE_PACKAGER_HOSTNAME", $global:ipAddress, "User")
     Write-Host "Environment variable set: REACT_NATIVE_PACKAGER_HOSTNAME=$global:ipAddress" -ForegroundColor Green
 } else {
     Write-Host "Could not detect IP address" -ForegroundColor Red
     exit 1
 }
+
+# Get service IP configurations
+Get-ServiceIPs
 
 Write-Host ""
 $startBackend = Read-Host "Do you want to start the Supabase backend? (y/n)"
@@ -338,7 +442,7 @@ if ($startBackend -eq "y" -or $startBackend -eq "Y") {
 Write-Host ""
 Write-Host "Extra services available:"
 Write-Host " - MQTT docker service"
-Write-Host " - Face Auth service (WIP)"
+Write-Host " - Face Auth service"
 $startExtras = Read-Host "Do you want to start the extra services? (y/n)"
 if ($startExtras -eq "y" -or $startExtras -eq "Y") {
     Start-Extras
@@ -351,12 +455,19 @@ $startFrontend = Read-Host "Do you want to start the Expo frontend? (y/n)"
 if ($startFrontend -eq "y" -or $startFrontend -eq "Y") {
     Start-Frontend
 } else {
+    # Update Supabase configuration
+    Update-SupabaseFile
+    
+    # Update MQTT configuration
+    Update-MQTTFile
     Write-Host "Skipping Expo frontend." -ForegroundColor Yellow
 }
-
-Write-Host "Setup complete! Both Supabase and Expo frontend are running." -ForegroundColor Green
+Write-Host ""
+Write-Host "Setup complete!" -ForegroundColor Green
 Write-Host "- Expo is available at http://$global:ipAddress`:8081" -ForegroundColor Cyan
 Write-Host "- Supabase Studio is available at http://localhost:8000" -ForegroundColor Cyan
+Write-Host "- Supabase API configured for: http://$global:supabaseIP`:8000" -ForegroundColor Cyan
+Write-Host "- MQTT configured for: $global:mqttIP`:9001" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "To view logs:" -ForegroundColor Cyan
 Write-Host "- Frontend: docker compose logs -f -f expo-app" -ForegroundColor Cyan
@@ -369,6 +480,7 @@ while ($true) {
     Write-Host "- r - restart," -ForegroundColor Cyan
     Write-Host "- rf - restart frontend," -ForegroundColor Cyan
     Write-Host "- rb - restart backend," -ForegroundColor Cyan
+    Write-Host "- re - restart extras," -ForegroundColor Cyan
     $option = Read-Host "or press any key to continue"
     
     if ($option -eq "q") {
@@ -377,7 +489,7 @@ while ($true) {
             Backup-Database
         }
         
-        Write-Host "Shutting down both frontend and backend..." -ForegroundColor Cyan
+        Write-Host "Shutting down all services..." -ForegroundColor Cyan
         Push-Location ".\frontend"
         docker compose down
         Pop-Location
@@ -390,6 +502,10 @@ while ($true) {
         docker compose down
         Pop-Location
         
+        Push-Location ".\extensions\face_auth"
+        docker compose down
+        Pop-Location
+        
         Write-Host "Shutdown complete. Exiting..." -ForegroundColor Green
         break
     } elseif ($option -eq "rb") {
@@ -398,11 +514,11 @@ while ($true) {
         Restart-Frontend
     } elseif ($option -eq "re") {
         Restart-Extras
-    }
-     elseif ($option -eq "r") {
-        Write-Host "Restarting both frontend and backend..." -ForegroundColor Cyan
+    } elseif ($option -eq "r") {
+        Write-Host "Restarting all services..." -ForegroundColor Cyan
         Restart-Frontend
         Restart-Backend
+        Restart-Extras
     } else {
         Write-Host "Continuing development..." -ForegroundColor Cyan
     }

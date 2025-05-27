@@ -50,7 +50,7 @@ const GlobalDataProvider: React.FC<{children: React.ReactNode}> = ({ children })
       const clientId = `user_${userId}_${timestamp}_${Math.random().toString(16).substr(2, 8)}`;
       console.log('Creating new MQTT client with ID:', clientId);
       
-      const client = new Paho.Client('164.8.222.74', 9001, clientId);
+      const client = new Paho.Client('164.8.206.71', 9001, clientId);
       
       client.onConnectionLost = (responseObject: Paho.MQTTError) => {
         if (responseObject.errorCode !== 0) {
@@ -96,3 +96,6 @@ const GlobalDataProvider: React.FC<{children: React.ReactNode}> = ({ children })
 };
 
 export default GlobalDataProvider;
+
+
+
