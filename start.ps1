@@ -124,25 +124,46 @@ function Update-SupabaseFile {
 
 function Update-MQTTFile {
     $mqttFile = Join-Path $PSScriptRoot "frontend\app\GlobalDataProvider.tsx"
+    $loginFile = Join-Path $PSScriptRoot "frontend\app\login.tsx"
     
+    # Update GlobalDataProvider.tsx
     if (Test-Path $mqttFile) {
         $content = Get-Content $mqttFile -Raw
-        Write-Host "Updating MQTT configuration with IP: $global:mqttIP" -ForegroundColor Yellow
-
+        Write-Host "Updating MQTT configuration in GlobalDataProvider.tsx with IP: $global:mqttIP" -ForegroundColor Yellow
+        
         $pattern = "(const client = new Paho\.Client\(')[^']+(',\s*9001,)"
         $replacement = "`${1}$global:mqttIP`${2}"
-
         $newContent = $content -replace $pattern, $replacement
         
         if ($newContent -match "new Paho\.Client\('$global:mqttIP', 9001,") {
             Set-Content -Path $mqttFile -Value $newContent -Force
-            Write-Host "Successfully updated MQTT client to use IP: $global:mqttIP" -ForegroundColor Green
+            Write-Host "Successfully updated MQTT client in GlobalDataProvider.tsx to use IP: $global:mqttIP" -ForegroundColor Green
         } else {
-            Write-Host "Warning: MQTT IP replacement may not have worked correctly" -ForegroundColor Yellow
+            Write-Host "Warning: MQTT IP replacement in GlobalDataProvider.tsx may not have worked correctly" -ForegroundColor Yellow
             Write-Host "Please verify the content of $mqttFile" -ForegroundColor Yellow
         }
     } else {
         Write-Host "Error: Could not find $mqttFile" -ForegroundColor Red
+    }
+    
+    # Update login.tsx
+    if (Test-Path $loginFile) {
+        $loginContent = Get-Content $loginFile -Raw
+        Write-Host "Updating MQTT configuration in login.tsx with IP: $global:mqttIP" -ForegroundColor Yellow
+        
+        $loginPattern = "(const MQTT_HOST = ')[^']+(';\s*//.*)"
+        $loginReplacement = "`${1}$global:mqttIP`${2}"
+        $newLoginContent = $loginContent -replace $loginPattern, $loginReplacement
+        
+        if ($newLoginContent -match "const MQTT_HOST = '$global:mqttIP';") {
+            Set-Content -Path $loginFile -Value $newLoginContent -Force
+            Write-Host "Successfully updated MQTT_HOST in login.tsx to: $global:mqttIP" -ForegroundColor Green
+        } else {
+            Write-Host "Warning: MQTT IP replacement in login.tsx may not have worked correctly" -ForegroundColor Yellow
+            Write-Host "Please verify the content of $loginFile" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Error: Could not find $loginFile" -ForegroundColor Red
     }
 }
 
@@ -308,6 +329,290 @@ function Start-Supabase {
     }
 }
 
+function Update-HealthDataFiles {
+    param (
+        [string]$Platform
+    )
+    
+    $homePath = Join-Path $PSScriptRoot "frontend\app\(authenticated)\(tabs)\home.tsx"
+    $activityPath = Join-Path $PSScriptRoot "frontend\app\(authenticated)\(tabs)\activity.tsx"
+    
+    Write-Host "Updating health data files for platform: $Platform" -ForegroundColor Yellow
+    
+    if (Test-Path $homePath) {
+        Update-HomeFile -FilePath $homePath -Platform $Platform
+    } else {
+        Write-Host "Warning: Could not find $homePath" -ForegroundColor Yellow
+    }
+    
+    if (Test-Path $activityPath) {
+        Update-ActivityFile -FilePath $activityPath -Platform $Platform
+    } else {
+        Write-Host "Warning: Could not find $activityPath" -ForegroundColor Yellow
+    }
+}
+
+function Update-HomeFile-Corrected {
+    param (
+        [string]$FilePath,
+        [string]$Platform
+    )
+    
+    $lines = Get-Content $FilePath
+    $newLines = @()
+    
+    foreach ($line in $lines) {
+        $newLine = $line
+        
+        # Extract indentation and determine if line is commented
+        if ($line -match '^(\s*)(/+)?\s*(.*)$') {
+            $indent = $matches[1]
+            $commentSlashes = $matches[2]
+            $content = $matches[3]
+            $isCommented = ![string]::IsNullOrEmpty($commentSlashes)
+        }
+        
+        switch ($Platform) {
+            "ios" {
+                # Handle imports - matches any number of comment slashes
+                if ($content -match "import useHealthDataios") {
+                    $newLine = "import useHealthDataios from '../../../hooks/useHealthDataios'"
+                }
+                elseif ($content -match "import useHealthData(?!ios)") {
+                    $newLine = "//import useHealthData from '../../../hooks/useHealthData'"
+                }
+                # Handle hook declarations
+                elseif ($content -match "const iosHealthData") {
+                    $newLine = "$indent const iosHealthData = useHealthDataios(selectedDate)"
+                }
+                elseif ($content -match "const androidHealthData") {
+                    $newLine = "$indent //const androidHealthData = useHealthData(selectedDate);"
+                }
+                # Handle variable declaration
+                elseif ($content -match "let sleep = .+, calories = .+;") {
+                    $newLine = "$indent let sleep = 0, calories = 0;"
+                }
+                # Handle iOS assignments (uncomment and set)
+                elseif ($content -match "sleep = iosHealthData") {
+                    $newLine = "$indent sleep = iosHealthData?.sleepingHours || 0;"
+                }
+                elseif ($content -match "calories = iosHealthData") {
+                    $newLine = "$indent calories = iosHealthData?.calories || 0;"
+                }
+                # Comment out Android assignments - THIS IS THE KEY FIX
+                elseif ($line -match "^(\s*)(?!/+)(sleep = androidHealthData\.sleep;?)") {
+                    $newLine = "$($matches[1])//sleep = androidHealthData.sleep;"
+                }
+                elseif ($line -match "^(\s*)(?!/+)(calories = androidHealthData\.energy;?)") {
+                    $newLine = "$($matches[1])//calories = androidHealthData.energy;"
+                }
+            }
+            "android" {
+                # Handle imports
+                if ($content -match "import useHealthData(?!ios)") {
+                    $newLine = "import useHealthData from '../../../hooks/useHealthData'"
+                }
+                elseif ($content -match "import useHealthDataios") {
+                    $newLine = "//import useHealthDataios from '../../../hooks/useHealthDataios'"
+                }
+                # Handle hook declarations
+                elseif ($content -match "const androidHealthData") {
+                    $newLine = "$indent const androidHealthData = useHealthData(selectedDate);"
+                }
+                elseif ($content -match "const iosHealthData") {
+                    $newLine = "$indent //const iosHealthData = useHealthDataios(selectedDate)"
+                }
+                # Handle variable declaration
+                elseif ($content -match "let sleep = .+, calories = .+;") {
+                    $newLine = "$indent let sleep = 0, calories = 0;"
+                }
+                # Handle Android assignments (uncomment and set)
+                elseif ($content -match "sleep = androidHealthData") {
+                    $newLine = "$indent sleep = androidHealthData?.sleep || 0;"
+                }
+                elseif ($content -match "calories = androidHealthData") {
+                    $newLine = "$indent calories = androidHealthData?.energy || 0;"
+                }
+                # Comment out iOS assignments
+                elseif ($line -match "^(\s*)(?!/+)(sleep = iosHealthData\.sleepingHours;?)") {
+                    $newLine = "$($matches[1])//sleep = iosHealthData.sleepingHours;"
+                }
+                elseif ($line -match "^(\s*)(?!/+)(calories = iosHealthData\.calories;?)") {
+                    $newLine = "$($matches[1])//calories = iosHealthData.calories;"
+                }
+            }
+            "expo" {
+                # Comment all imports
+                if ($content -match "import useHealthDataios" -and !$isCommented) {
+                    $newLine = "//import useHealthDataios from '../../../hooks/useHealthDataios'"
+                }
+                elseif ($content -match "import useHealthData" -and !$isCommented) {
+                    $newLine = "//import useHealthData from '../../../hooks/useHealthData'"
+                }
+                # Comment hook usage
+                elseif ($content -match "const androidHealthData" -and !$isCommented) {
+                    $newLine = "$indent //const androidHealthData = useHealthData(selectedDate);"
+                }
+                elseif ($content -match "const iosHealthData" -and !$isCommented) {
+                    $newLine = "$indent //const iosHealthData = useHealthDataios(selectedDate)"
+                }
+                # Set mock values in variable declaration
+                elseif ($content -match "let sleep = .+, calories = .+;") {
+                    $newLine = "$indent let sleep = 8.3, calories = 714;"
+                }
+                # Comment all platform-specific assignments
+                elseif ($line -match "^(\s*)(?!/+)(sleep = (?:androidHealthData\.sleep|iosHealthData\.sleepingHours);?)") {
+                    $newLine = "$($matches[1])//$($matches[2]) [commented for Expo]"
+                }
+                elseif ($line -match "^(\s*)(?!/+)(calories = (?:androidHealthData\.energy|iosHealthData\.calories);?)") {
+                    $newLine = "$($matches[1])//$($matches[2]) [commented for Expo]"
+                }
+            }
+        }
+        
+        $newLines += $newLine
+    }
+    
+    $newLines | Set-Content -Path $FilePath -Force
+    Write-Host "Successfully updated home.tsx with corrected patterns for $Platform" -ForegroundColor Green
+}
+
+
+
+function Update-ActivityFile {
+    param (
+        [string]$FilePath,
+        [string]$Platform
+    )
+    
+    $lines = Get-Content $FilePath
+    $newLines = @()
+    
+    foreach ($line in $lines) {
+        $newLine = $line
+        $indent = if ($line -match '^(\s*)') { $matches[1] } else { '' }
+        
+        switch ($Platform) {
+            "ios" {
+                # Handle imports - matches any number of comment slashes
+                if ($line -match "^(\s*)/+\s*import useHealthDataios" -or $line -match "^(\s*)import useHealthDataios") {
+                    $newLine = "import useHealthDataios from '../../../hooks/useHealthDataios'"
+                }
+                elseif ($line -match "^(\s*)/+\s*import useHealthData(?!ios)" -or $line -match "^(\s*)import useHealthData(?!ios)") {
+                    $newLine = "//import useHealthData from '../../../hooks/useHealthData'"
+                }
+                # Handle hook declarations
+                elseif ($line -match "^(\s*)/+\s*const iosHealthData" -or $line -match "^(\s*)const iosHealthData") {
+                    $newLine = "$indent const iosHealthData = useHealthDataios(date)"
+                }
+                elseif ($line -match "^(\s*)/+\s*const androidHealthData" -or $line -match "^(\s*)const androidHealthData") {
+                    $newLine = "$indent //const androidHealthData = useHealthData(date);"
+                }
+                # Handle variable declaration - preserve indentation from original
+                elseif ($line -match "^(\s*)let steps = .+, flights = .+, distance = .+;") {
+                    $newLine = "$($matches[1])let steps = 0, flights = 0, distance = 0;"
+                }
+                # Handle iOS assignments (uncomment and set) - matches any number of slashes
+                elseif ($line -match "^(\s*)/+\s*steps = iosHealthData" -or $line -match "^(\s*)steps = iosHealthData") {
+                    $newLine = "$indent steps = iosHealthData?.steps || 0;"
+                }
+                elseif ($line -match "^(\s*)/+\s*flights = iosHealthData" -or $line -match "^(\s*)flights = iosHealthData") {
+                    $newLine = "$indent flights = iosHealthData?.flights || 0;"
+                }
+                elseif ($line -match "^(\s*)/+\s*distance = iosHealthData" -or $line -match "^(\s*)distance = iosHealthData") {
+                    $newLine = "$indent distance = iosHealthData?.distance || 0;"
+                }
+                # Comment out Android assignments - only if not already commented
+                elseif ($line -match "^(\s*)(?!/)(steps = androidHealthData.*)") {
+                    $newLine = "$($matches[1])//$($matches[2])"
+                }
+                elseif ($line -match "^(\s*)(?!/)(flights = androidHealthData.*)") {
+                    $newLine = "$($matches[1])//$($matches[2])"
+                }
+                elseif ($line -match "^(\s*)(?!/)(distance = androidHealthData.*)") {
+                    $newLine = "$($matches[1])//$($matches[2])"
+                }
+            }
+            "android" {
+                # Handle imports - matches any number of comment slashes
+                if ($line -match "^(\s*)/+\s*import useHealthData(?!ios)" -or $line -match "^(\s*)import useHealthData(?!ios)") {
+                    $newLine = "import useHealthData from '../../../hooks/useHealthData'"
+                }
+                elseif ($line -match "^(\s*)/+\s*import useHealthDataios" -or $line -match "^(\s*)import useHealthDataios") {
+                    $newLine = "//import useHealthDataios from '../../../hooks/useHealthDataios'"
+                }
+                # Handle hook declarations
+                elseif ($line -match "^(\s*)/+\s*const androidHealthData" -or $line -match "^(\s*)const androidHealthData") {
+                    $newLine = "$indent const androidHealthData = useHealthData(date);"
+                }
+                elseif ($line -match "^(\s*)/+\s*const iosHealthData" -or $line -match "^(\s*)const iosHealthData") {
+                    $newLine = "$indent //const iosHealthData = useHealthDataios(date)"
+                }
+                # Handle variable declaration
+                elseif ($line -match "^(\s*)let steps = .+, flights = .+, distance = .+;") {
+                    $newLine = "$($matches[1])let steps = 0, flights = 0, distance = 0;"
+                }
+                # Handle Android assignments (uncomment and set)
+                elseif ($line -match "^(\s*)/+\s*steps = androidHealthData" -or $line -match "^(\s*)steps = androidHealthData") {
+                    $newLine = "$indent steps = androidHealthData?.steps || 0;"
+                }
+                elseif ($line -match "^(\s*)/+\s*flights = androidHealthData" -or $line -match "^(\s*)flights = androidHealthData") {
+                    $newLine = "$indent flights = androidHealthData?.flights || 0;"
+                }
+                elseif ($line -match "^(\s*)/+\s*distance = androidHealthData" -or $line -match "^(\s*)distance = androidHealthData") {
+                    $newLine = "$indent distance = androidHealthData?.distance || 0;"
+                }
+                # Comment out iOS assignments - only if not already commented
+                elseif ($line -match "^(\s*)(?!/)(steps = iosHealthData.*)") {
+                    $newLine = "$($matches[1])//$($matches[2])"
+                }
+                elseif ($line -match "^(\s*)(?!/)(flights = iosHealthData.*)") {
+                    $newLine = "$($matches[1])//$($matches[2])"
+                }
+                elseif ($line -match "^(\s*)(?!/)(distance = iosHealthData.*)") {
+                    $newLine = "$($matches[1])//$($matches[2])"
+                }
+            }
+            "expo" {
+                # Comment all imports - preserve existing comments or add new ones
+                if ($line -match "^(\s*)(?!/+)import useHealthDataios") {
+                    $newLine = "//import useHealthDataios from '../../../hooks/useHealthDataios'"
+                }
+                elseif ($line -match "^(\s*)(?!/+)import useHealthData") {
+                    $newLine = "//import useHealthData from '../../../hooks/useHealthData'"
+                }
+                # Comment hook usage - preserve existing comments or add new ones
+                elseif ($line -match "^(\s*)(?!/+)const androidHealthData") {
+                    $newLine = "$($matches[1])//const androidHealthData = useHealthData(date);"
+                }
+                elseif ($line -match "^(\s*)(?!/+)const iosHealthData") {
+                    $newLine = "$($matches[1])//const iosHealthData = useHealthDataios(date)"
+                }
+                # Set mock values in variable declaration
+                elseif ($line -match "^(\s*)let steps = .+, flights = .+, distance = .+;") {
+                    $newLine = "$($matches[1])let steps = 18074, flights = 8.4, distance = 1042;"
+                }
+                # Comment all platform-specific assignments - only if not already commented
+                elseif ($line -match "^(\s*)(?!/+)(steps = (?:androidHealthData|iosHealthData).*)") {
+                    $newLine = "$($matches[1])//$($matches[2]) [commented for Expo]"
+                }
+                elseif ($line -match "^(\s*)(?!/+)(flights = (?:androidHealthData|iosHealthData).*)") {
+                    $newLine = "$($matches[1])//$($matches[2]) [commented for Expo]"
+                }
+                elseif ($line -match "^(\s*)(?!/+)(distance = (?:androidHealthData|iosHealthData).*)") {
+                    $newLine = "$($matches[1])//$($matches[2]) [commented for Expo]"
+                }
+            }
+        }
+        
+        $newLines += $newLine
+    }
+    
+    $newLines | Set-Content -Path $FilePath -Force
+    Write-Host "Successfully updated activity.tsx with improved precise processing for $Platform" -ForegroundColor Green
+}
+
+
 function Start-Frontend {
     Write-Host "Launching new console for Expo frontend..." -ForegroundColor Cyan
 
@@ -319,10 +624,49 @@ function Start-Frontend {
     # Update MQTT configuration
     Update-MQTTFile
 
-    $command = "cd `"$frontendPath`" ; npx expo start"
+    # Platform selection
+    Write-Host "`nSelect platform to run:" -ForegroundColor Yellow
+    Write-Host "1) iOS" -ForegroundColor Cyan
+    Write-Host "2) Expo Go" -ForegroundColor Cyan
+    Write-Host "3) Android" -ForegroundColor Cyan
+    
+    $platformChoice = Read-Host "Enter choice (1-3)"
+    
+    $command = "cd `"$frontendPath`""
+    $platformType = ""
+    
+    switch ($platformChoice) {
+        "1" { 
+            $command += " ; npx expo start --ios"
+            $platformType = "ios"
+            Write-Host "Starting Expo for iOS..." -ForegroundColor Green
+        }
+        "2" { 
+            $command += " ; npx expo start"
+            $platformType = "expo"
+            Write-Host "Starting Expo Go (scan QR code with Expo Go app)..." -ForegroundColor Green
+        }
+        "3" { 
+            $command += " ; npx expo start --android"
+            $platformType = "android"
+            Write-Host "Starting Expo for Android..." -ForegroundColor Green
+            Write-Host "Note: If you need to navigate to a specific screen for Android testing," -ForegroundColor Yellow
+            Write-Host "you can manually navigate to: frontend/app/(authenticated)/(tabs)" -ForegroundColor Yellow
+        }
+        default { 
+            $command += " ; npx expo start"
+            $platformType = "expo"
+            Write-Host "Starting Expo with default settings..." -ForegroundColor Green
+        }
+    }
+
+    # Update health data files based on selected platform
+    Update-HealthDataFiles -Platform $platformType
+
     Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
 
-    Write-Host "New console launched running 'npx expo start --tunnel'" -ForegroundColor Green
+    Write-Host "New console launched for Expo frontend" -ForegroundColor Green
+    Write-Host "Health data files configured for $platformType platform" -ForegroundColor Green
 }
 
 function Start-Extras {

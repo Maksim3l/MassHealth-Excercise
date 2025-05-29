@@ -3,6 +3,7 @@
 # dependencies
 node_modules/
 extensions/face_auth/tensorflow_env/
+extensions/face_auth/pytorch_env/
 extensions/face_auth/data/
 extensions/face_auth/indep_data/
 extensions/face_auth/training_checkpoints/
