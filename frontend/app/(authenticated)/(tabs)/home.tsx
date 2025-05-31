@@ -6,7 +6,7 @@ import SleepIcon from '../../../assets/tsxicons/sleepicon';
 import CustomDate from '../../../components/date';
 import { supabase } from '../../../utils/supabase';
 import CustomAlert from '../../../components/CustomAlert';  
-//import useHealthDataios from '../../../hooks/useHealthDataios'
+import useHealthDataios from '../../../hooks/useHealthDataios'
 import useHealthData from '../../../hooks/useHealthData'
 //EXPO GO USERS!! zakomentiraj hooks in rocno nastavi steps, flights, distance
 
@@ -22,7 +22,7 @@ const home = () => {
 
   // Use selectedDate instead of the fixed date
   const androidHealthData = useHealthData(selectedDate);
-  //const iosHealthData = useHealthDataios(selectedDate)
+  const iosHealthData = useHealthDataios(selectedDate)
   
   useEffect(() => {
     const fetchProfile = async () => {
@@ -85,12 +85,9 @@ const home = () => {
 
   if (Platform.OS === 'ios') {
       //When you have iOS hook ready, use it here
-      //sleep = iosHealthData.sleepingHours;
-      //calories = iosHealthData.calories;
+      sleep = iosHealthData?.sleepingHours || 0;
+      calories = iosHealthData?.calories || 0;
     } else if (Platform.OS === 'android') {
-      //steps = androidHealthData.steps;
-      //flights = androidHealthData.flights;
-      //distance = androidHealthData.distance;
       sleep = androidHealthData.sleep;
       calories = androidHealthData.energy;
     }
@@ -283,3 +280,7 @@ const styles = StyleSheet.create({
 });
 
 export default home;
+
+
+
+

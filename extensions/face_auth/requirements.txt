@@ -1,0 +1,8 @@
+flask
+torch==2.2.2
+torchvision==0.17.2
+numpy==1.26.4
+pillow==10.2.0
+requests==2.32.3
+supabase
+facenet-pytorch==2.6.0

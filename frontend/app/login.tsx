@@ -9,6 +9,7 @@ import DefButton from '../components/button';
 import { supabase } from '../utils/supabase';
 import * as Paho from 'paho-mqtt';
 
+
 const MQTT_HOST = '192.168.1.16'; // Update actual broker address
 const MQTT_PORT = 9001;
 
@@ -515,3 +516,11 @@ const styles = StyleSheet.create({
 });
 
 export default login;
+
+
+
+
+
+
+
+
