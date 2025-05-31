@@ -2,7 +2,7 @@
 
 <div align="center">
   
-  ![MassHealth Logo](./frontend/assets/logo.png)
+  ![MassHealthLogo](https://github.com/user-attachments/assets/adec8c01-50f1-4ec8-a719-44a9f8afe492)
   
   **Personalized fitness tracking and workout planning application**
   
@@ -115,11 +115,6 @@ MassHealth features a modern, minimalist design with:
 
 - Uroš Mlakar
 - Sandi Majninger
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ---
 
 <div align="center">
