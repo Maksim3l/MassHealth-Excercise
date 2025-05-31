@@ -9,7 +9,7 @@ import DefButton from '../components/button';
 import { supabase } from '../utils/supabase';
 import * as Paho from 'paho-mqtt';
 
-const MQTT_HOST = '192.168.1.14'; // Update actual broker address
+const MQTT_HOST = '192.168.1.16'; // Update actual broker address
 const MQTT_PORT = 9001;
 
 const login = () => {
@@ -28,6 +28,62 @@ const login = () => {
       disconnectMQTT();
     }
   }, [mqttClient])
+
+  // Create a reusable function to handle username fetching and setting
+  const fetchAndSetUsername = async (userId: string): Promise<string> => {
+    try {
+      console.log("Fetching username for user:", userId);
+      
+      // First, try to get from database
+      const { data: userData, error: usernameError } = await supabase
+        .from('User_Metadata')
+        .select('username')
+        .eq('user_id', userId)
+        .single();
+      
+      let finalUsername;
+      
+      if (usernameError) {
+        console.error("Error fetching username from database:", usernameError.message);
+        // Try to get from AsyncStorage as backup
+        const storedUsername = await AsyncStorage.getItem('username');
+        if (storedUsername) {
+          console.log("Using stored username from AsyncStorage:", storedUsername);
+          finalUsername = storedUsername;
+        } else {
+          // Final fallback
+          finalUsername = `user-${userId.substring(0, 8)}`;
+          console.log("Using generated fallback username:", finalUsername);
+        }
+      } else {
+        // Successfully fetched from database
+        finalUsername = userData?.username || `user-${userId.substring(0, 8)}`;
+        console.log("Successfully fetched username from database:", finalUsername);
+      }
+      
+      // Store in both global and AsyncStorage
+      global.username = finalUsername;
+      global.userId = userId;
+      
+      try {
+        await AsyncStorage.setItem('userId', userId);
+        await AsyncStorage.setItem('username', finalUsername);
+        console.log("Successfully stored user data in AsyncStorage");
+      } catch (storageError) {
+        console.error("Error storing user data in AsyncStorage:", storageError);
+        // Don't throw - we still have the username in global
+      }
+      
+      return finalUsername;
+    } catch (error) {
+      console.error("Unexpected error in fetchAndSetUsername:", error);
+      // Emergency fallback
+      const emergencyUsername = `user-${userId.substring(0, 8)}`;
+      global.username = emergencyUsername;
+      global.userId = userId;
+      return emergencyUsername;
+    }
+  };
 
   // Function to handle MQTT disconnection
   const disconnectMQTT = () => {
@@ -133,7 +189,7 @@ const login = () => {
 
   async function checkExistingSession() {
     try {
-      //console.log("Checking for existing session...")
+      console.log("Checking for existing session...")
       
       const { data, error } = await supabase.auth.getSession()
       
@@ -149,12 +205,10 @@ const login = () => {
         const expiresAt = data.session.expires_at
         
         if (expiresAt && expiresAt > now) {
-          //console.log("Found valid existing session, redirecting to authenticated route")
+          console.log("Found valid existing session, fetching username...")
           
-          // Get username for MQTT connection
-          const username = await AsyncStorage.getItem('username') || `user-${data.session.user.id.substring(0, 8)}`;
-          global.username = username;
-          global.userId = data.session.user.id;
+          // Properly fetch username using our new function
+          const username = await fetchAndSetUsername(data.session.user.id);
           
           if (!global.mqttClient || !global.mqttClient.isConnected()) {
             const client = connectToMQTT(data.session.user.id, username);
@@ -171,7 +225,7 @@ const login = () => {
           await prepareForLogin()
         }
       } else {
-        //console.log("No active session found, user needs to log in")
+        console.log("No active session found, user needs to log in")
       }
       
       setLoading(false) // Only set loading to false if we're not redirecting
@@ -184,7 +238,7 @@ const login = () => {
   // Function to prepare for a clean login attempt 
   async function prepareForLogin() {
     try {
-      //console.log("Signing out and clearing tokens...")
+      console.log("Signing out and clearing tokens...")
       
       // Sign out first
       await supabase.auth.signOut({ scope: 'global' })
@@ -194,7 +248,7 @@ const login = () => {
       
       disconnectMQTT();
       
-      //console.log("Session cleared successfully")
+      console.log("Session cleared successfully")
     } catch (err) {
       console.error("Error preparing for login:", err)
     }
@@ -224,7 +278,6 @@ const login = () => {
         if (error.message.includes('Database error granting user') || 
             error.message.includes('duplicate key value')) {
           
-          //console.log("Detected token conflict error")
           setShowReset(true)
           
           Alert.alert(
@@ -250,51 +303,13 @@ const login = () => {
         return
       }
       
-      console.log("Login successful!")
+      console.log("Login successful! Fetching username...")
 
-      // Fetch and set username
-      try {
-        const { data: userData, error: usernameError } = await supabase
-        .from('User_Metadata')
-        .select('username')
-        .eq('user_id', data.user.id)
-        .single();
-          
-        let safeUsername;
-        if (usernameError) {
-          console.error("Error fetching username:", usernameError.message);
-          // Create a fallback username based on user ID
-          safeUsername = `user-${data.user.id.substring(0, 8)}`;
-        } else {
-          // Successfully fetched username
-          safeUsername = userData?.username || `user-${data.user.id.substring(0, 8)}`;
-        }
-        
-        // Store user data in AsyncStorage
-        await AsyncStorage.setItem('userId', data.user.id);
-        await AsyncStorage.setItem('username', safeUsername);
-        
-        global.username = safeUsername;
-        global.userId = data.user.id;
-        
-        console.log("Set and persisted username:", safeUsername);
-      } catch (err) {
-        console.error("Unexpected error handling user data:", err);
-        const safeUsername = `user-${data.user.id.substring(0, 8)}`;
-        global.username = safeUsername;
-        global.userId = data.user.id;
-        
-        // Still try to persist even in error case
-        try {
-          await AsyncStorage.setItem('userId', data.user.id);
-          await AsyncStorage.setItem('username', safeUsername);
-        } catch (storageError) {
-          console.error("Error storing user data:", storageError);
-        }
-      }
+      // Use our new function to properly fetch and set username
+      const username = await fetchAndSetUsername(data.user.id);
       
-      // Connect to MQTT
-      const client = connectToMQTT(data.user.id, global.username || `user-${data.user.id.substring(0, 8)}`);
+      // Connect to MQTT with the properly fetched username
+      const client = connectToMQTT(data.user.id, username);
       if (client) {
         setMqttClient(client);
       }
@@ -371,15 +386,11 @@ const login = () => {
         return;
       }
       
-      const safeUsername = `user-${data.user.id.substring(0, 8)}`;
-      global.username = safeUsername;
-      global.userId = data.user.id;
+      // Use our new function to properly fetch and set username
+      const username = await fetchAndSetUsername(data.user.id);
       
-      await AsyncStorage.setItem('userId', data.user.id);
-      await AsyncStorage.setItem('username', safeUsername);
-      
-      // Connect to MQTT
-      const client = connectToMQTT(data.user.id, safeUsername);
+      // Connect to MQTT with the properly fetched username
+      const client = connectToMQTT(data.user.id, username);
       if (client) {
         setMqttClient(client);
       }
