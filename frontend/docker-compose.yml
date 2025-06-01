@@ -1,29 +1,34 @@
-version: '3.8'
 services:
   expo-frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: . 
+      dockerfile: Dockerfile
     ports:
-      - "19000:19000"  # Metro bundler
-      - "19001:19001"  # Expo DevTools
-      - "19002:19002"  # Expo CLI
-      - "19006:19006"  # Web (optional)
-      - "8081:8081"    # Metro alternative
+      - "19000:19000"  
+      - "19001:19001"  
+      - "19002:19002"
+      - "19006:19006"  
+      - "8081:8081"    
     environment:
       - PLATFORM=${PLATFORM:-expo}
-      - SUPABASE_IP=${SUPABASE_IP:-localhost}
-      - MQTT_IP=${MQTT_IP:-localhost}
       - HOST_IP=${HOST_IP:-localhost}
       - EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
       - REACT_NATIVE_PACKAGER_HOSTNAME=${HOST_IP:-localhost}
     volumes:
-      - ./frontend:/app
+      - .:/app
+      - /app/node_modules 
+      - /app/.expo
     stdin_open: true
     tty: true
     networks:
       - frontend-network
+      - supabase_default
+      - extensions_app-network
 
 networks:
   frontend-network:
     driver: bridge
+  supabase_default:
+    external: true
+  extensions_app-network:
+    external: true

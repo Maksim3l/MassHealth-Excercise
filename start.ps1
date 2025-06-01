@@ -562,7 +562,7 @@ function Start-Frontend {
         }
         "2" { 
             Write-Host "Starting Expo Go in Docker container..." -ForegroundColor Green
-            
+
             Push-Location $frontendPath
             try {
                 Configure-Frontend -Platform "expo"
@@ -570,34 +570,22 @@ function Start-Frontend {
             finally {
                 Pop-Location
             }
-            
+
             $env:PLATFORM = "expo"
+            $env:HOST_IP = $global:ipAddress
             $env:SUPABASE_IP = $global:supabaseIP
             $env:MQTT_IP = $global:mqttIP
-            $env:HOST_IP = $global:ipAddress
 
-            try {
-                $dockerStatus = docker version 2>$null
-                if (-not $dockerStatus) {
-                    throw "Docker not available"
-                }
-            }
-            catch {
-                Write-Host "Error: Docker is not running or not installed" -ForegroundColor Red
-                Write-Host "Please start Docker Desktop and try again" -ForegroundColor Yellow
-                return
-            }
-            
-            $dockerComposeFile = Join-Path $PSScriptRoot "docker-compose-frontend.yml"
-            if (-not (Test-Path $dockerComposeFile)) {
-                Write-Host "Creating Docker Compose file..." -ForegroundColor Cyan
-            }
+            $dockerComposeFile = Join-Path $frontendPath "docker-compose.yml"
 
             Write-Host "Building and starting Docker container..." -ForegroundColor Cyan
-            $dockerCommand = "docker-compose -f docker-compose-frontend.yml up --build"
-            
+
             try {
-                Push-Location $PSScriptRoot
+                Push-Location $frontendPath
+
+                $dockerCommand = "docker-compose up"
+                Write-Host "Running: $dockerCommand in $frontendPath" -ForegroundColor Gray
+
                 Invoke-Expression $dockerCommand
             }
             catch {
@@ -607,9 +595,9 @@ function Start-Frontend {
             finally {
                 Pop-Location
             }
-            
+
             Write-Host "Expo Go Docker container started" -ForegroundColor Green
-            Write-Host "Access the app at: http://$global:ipAddress`:8200" -ForegroundColor Cyan
+            Write-Host "Access the app at: http://$global:ipAddress`:19006" -ForegroundColor Cyan
             Write-Host "Use the Expo Go app to scan the QR code" -ForegroundColor Cyan
         }
         "3" { 
@@ -646,7 +634,7 @@ function Start-Frontend {
             $env:HOST_IP = $global:ipAddress
 
             Write-Host "Building and starting Docker container..." -ForegroundColor Cyan
-            $dockerCommand = "docker-compose -f docker-compose-frontend.yml up --build"
+            $dockerCommand = "docker-compose -f frontend/docker-compose.yml up --build"
             
             try {
                 Push-Location $PSScriptRoot
@@ -666,21 +654,9 @@ function Start-Extras {
     Write-Host "Starting Extra services..." -ForegroundColor Cyan
     
     # Start Mosquitto
-    Write-Host "Starting Mosquitto service..." -ForegroundColor Cyan
-    Push-Location ".\mosquitto"
-    try {
-        docker compose up -d
-        Write-Host "Mosquitto service started successfully" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "Error starting Mosquitto: $_" -ForegroundColor Red
-    }
-    finally {
-        Pop-Location
-    }
-    
+    Write-Host "Starting Mosquitto service..." -ForegroundColor Cyan    
     Write-Host "Starting Face Authentication service..." -ForegroundColor Cyan
-    Push-Location ".\extensions\face_auth"
+    Push-Location ".\extensions"
     try {
         $supabaseURL = "http://$global:supabaseIP`:8000"
         
@@ -714,20 +690,14 @@ function Restart-Backend {
 
 function Restart-Extras {
     Write-Host "Restarting extra services..." -ForegroundColor Cyan
-    Push-Location ".\mosquitto"
-    docker compose down
-    docker compose up -d
-    Pop-Location
-    Write-Host "Successfully restarted MQTT"
     
-    Push-Location ".\extensions\face_auth"
+    Push-Location ".\extensions"
     docker compose down
     $supabaseURL = "http://$global:supabaseIP`:8000"
     $env:SUPABASE_URL = $supabaseURL
     $env:SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q"
     docker compose up -d
     Pop-Location
-    Write-Host "Successfully restarted Face Auth"
     Write-Host "Extra services restarted." -ForegroundColor Green
 }
 
@@ -831,12 +801,8 @@ while ($true) {
         Push-Location ".\backend\supabase-project"
         docker compose down
         Pop-Location
-
-        Push-Location ".\mosquitto"
-        docker compose down
-        Pop-Location
         
-        Push-Location ".\extensions\face_auth"
+        Push-Location ".\extensions"
         docker compose down
         Pop-Location
         
