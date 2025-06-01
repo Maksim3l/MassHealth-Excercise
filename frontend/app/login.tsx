@@ -10,7 +10,7 @@ import { supabase } from '../utils/supabase';
 import * as Paho from 'paho-mqtt';
 
 
-const MQTT_HOST = '192.168.1.16'; // Update actual broker address
+const MQTT_HOST = '192.168.1.124'; // Update actual broker address
 const MQTT_PORT = 9001;
 
 const login = () => {
@@ -516,6 +516,7 @@ const styles = StyleSheet.create({
 });
 
 export default login;
+
 
 
 
