@@ -1,0 +1,45 @@
+name: MQTT-Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  mqtt-test:
+    runs-on: self-hosted
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Verify mosquitto config exists
+      run: |
+        ls -la mosquitto/
+        echo 'Using existing configuration'
+
+    - name: Start mosquitto with docker compose
+      run: |
+        cd mosquitto
+        docker-compose up -d
+
+    - name: Wait for Mosquitto to be ready
+      run: |
+        echo 'Waiting for Mosquitto to start'
+        timeout 30s bash -c 'until docker exec mosquitto mosquitto_pub -t test -m "test" 2>/dev/null; do sleep 1; done'
+        echo 'Mosquitto is ready'
+
+    - name: Show mosquitto logs
+      if: always()
+      run: |
+        echo 'Mosquitto container logs'
+        docker logs mosquitto
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        cd mosquitto
+        docker-compose down
+        
+        
+
