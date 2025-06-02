@@ -77,23 +77,23 @@ jobs:
         fi
         exit 1
     
-- name: Test Health Endpoint
-  run: |
-    echo "=== Testing Health Endpoint ==="
-    API_URL="http://localhost:9002"
-
-    if ! response=$(curl -s -w "%{http_code}" -o health_response.json "$API_URL/health" 2>/dev/null); then
-      response="000"
-    fi
-
-    if [ "$response" = "200" ]; then
-      echo "✅ Health check PASSED"
-      echo "Response:"
-      if [ -f health_response.json ] && [ -s health_response.json ]; then
-        python3 -m json.tool < health_response.json || cat health_response.json
-      fi
-
-      python3 -c "import json
+    - name: Test Health Endpoint
+      run: |
+        echo "=== Testing Health Endpoint ==="
+        API_URL="http://localhost:9002"
+    
+        if ! response=$(curl -s -w "%{http_code}" -o health_response.json "$API_URL/health" 2>/dev/null); then
+          response="000"
+        fi
+    
+        if [ "$response" = "200" ]; then
+          echo "✅ Health check PASSED"
+          echo "Response:"
+          if [ -f health_response.json ] && [ -s health_response.json ]; then
+            python3 -m json.tool < health_response.json || cat health_response.json
+          fi
+    
+          python3 -c "import json
 import sys
 try:
     with open('health_response.json') as f:
