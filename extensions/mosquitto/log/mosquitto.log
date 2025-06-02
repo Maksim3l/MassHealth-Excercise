@@ -281,3 +281,83 @@ To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
 1748739853: mosquitto version 2.0.21 running
 1748740054: mosquitto version 2.0.21 terminating
 1748740054: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748775173: mosquitto version 2.0.21 starting
+1748775173: Config loaded from /mosquitto/config/mosquitto.conf.
+1748775173: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748775173: Opening ipv4 listen socket on port 1883.
+1748775173: Opening ipv6 listen socket on port 1883.
+1748775173: Opening websockets listen socket on port 9001.
+1748775173: mosquitto version 2.0.21 running
+1748775505: mosquitto version 2.0.21 terminating
+1748775505: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748776074: mosquitto version 2.0.21 starting
+1748776074: Config loaded from /mosquitto/config/mosquitto.conf.
+1748776074: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748776074: Opening ipv4 listen socket on port 1883.
+1748776074: Opening ipv6 listen socket on port 1883.
+1748776074: Opening websockets listen socket on port 9001.
+1748776074: mosquitto version 2.0.21 running
+1748776160: mosquitto version 2.0.21 terminating
+1748776160: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748892186: mosquitto version 2.0.21 starting
+1748892186: Config loaded from /mosquitto/config/mosquitto.conf.
+1748892186: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748892186: Opening ipv4 listen socket on port 1883.
+1748892186: Opening ipv6 listen socket on port 1883.
+1748892186: Opening websockets listen socket on port 9001.
+1748892186: mosquitto version 2.0.21 running
+1748893320: mosquitto version 2.0.21 terminating
+1748893320: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748893497: mosquitto version 2.0.21 starting
+1748893497: Config loaded from /mosquitto/config/mosquitto.conf.
+1748893497: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748893497: Opening ipv4 listen socket on port 1883.
+1748893497: Opening ipv6 listen socket on port 1883.
+1748893497: Opening websockets listen socket on port 9001.
+1748893497: mosquitto version 2.0.21 running
+1748893705: mosquitto version 2.0.21 terminating
+1748893705: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748893808: mosquitto version 2.0.21 starting
+1748893808: Config loaded from /mosquitto/config/mosquitto.conf.
+1748893808: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748893808: Opening ipv4 listen socket on port 1883.
+1748893808: Opening ipv6 listen socket on port 1883.
+1748893808: Opening websockets listen socket on port 9001.
+1748893808: mosquitto version 2.0.21 running
+1748893969: mosquitto version 2.0.21 terminating
+1748893969: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748895711: mosquitto version 2.0.21 starting
+1748895711: Config loaded from /mosquitto/config/mosquitto.conf.
+1748895711: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748895711: Opening ipv4 listen socket on port 1883.
+1748895711: Opening ipv6 listen socket on port 1883.
+1748895711: Opening websockets listen socket on port 9001.
+1748895711: mosquitto version 2.0.21 running
+1748895929: mosquitto version 2.0.21 terminating
+1748895929: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748896066: mosquitto version 2.0.21 starting
+1748896066: Config loaded from /mosquitto/config/mosquitto.conf.
+1748896066: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748896066: Opening ipv4 listen socket on port 1883.
+1748896066: Opening ipv6 listen socket on port 1883.
+1748896066: Opening websockets listen socket on port 9001.
+1748896066: mosquitto version 2.0.21 running
+1748896377: mosquitto version 2.0.21 terminating
+1748896377: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1748896503: mosquitto version 2.0.21 starting
+1748896503: Config loaded from /mosquitto/config/mosquitto.conf.
+1748896503: Warning: File /mosquitto/config/pwfile has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/pwfile`.
+1748896503: Opening ipv4 listen socket on port 1883.
+1748896503: Opening ipv6 listen socket on port 1883.
+1748896503: Opening websockets listen socket on port 9001.
+1748896503: mosquitto version 2.0.21 running
+1748896705: mosquitto version 2.0.21 terminating
+1748896705: Saving in-memory database to /mosquitto/data//mosquitto.db.
