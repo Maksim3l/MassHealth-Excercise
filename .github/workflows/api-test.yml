@@ -28,21 +28,23 @@ jobs:
     
     - name: Check if API service is configured
       run: |
-        if [ -f "docker-compose.yml" ] || [ -f "compose.yml" ]; then
-          echo "Docker compose file found"
-          ls -la *compose*.yml 2>/dev/null || echo "No compose files found"
+        if [ -f "./extensions/docker-compose.yml" ] || [ -f "./extensions/compose.yml" ]; then
+          echo "Docker compose file found in extensions directory"
+          ls -la ./extensions/*compose*.yml 2>/dev/null || echo "No compose files found"
         else
-          echo "No docker compose file found - will test against localhost"
+          echo "No docker compose file found in extensions - will test against localhost"
         fi
     
     - name: Start Face Verification API (if docker-compose exists)
       run: |
-        if [ -f "docker-compose.yml" ]; then
-          echo "Starting services with docker-compose..."
-          docker compose --file docker-compose.yml up -d --wait
-        elif [ -f "compose.yml" ]; then
-          echo "Starting services with compose.yml..."
-          docker compose --file compose.yml up -d --wait
+        if [ -f "./extensions/docker-compose.yml" ]; then
+          echo "Starting face-verification-api service with docker-compose..."
+          cd ./extensions
+          docker compose --file docker-compose.yml up -d face-verification-api --wait
+        elif [ -f "./extensions/compose.yml" ]; then
+          echo "Starting face-verification-api service with compose.yml..."
+          cd ./extensions
+          docker compose --file compose.yml up -d face-verification-api --wait
         else
           echo "No compose file found - assuming API runs separately"
         fi
@@ -158,87 +160,87 @@ jobs:
               print(f'❌ Error parsing response: {e}')
               sys.exit(1)
           "
-                  elif [ "$response" = "503" ]; then
-                    echo "⚠️ Model not loaded (503) - this may be expected"
-                    [ -f model_info_response.json ] && cat model_info_response.json || echo "No response body"
-                  else
-                    echo "❌ Model info check FAILED with status code: $response"
-                    [ -f model_info_response.json ] && cat model_info_response.json || echo "No response body"
-                    exit 1
-                  fi
+        elif [ "$response" = "503" ]; then
+          echo "⚠️ Model not loaded (503) - this may be expected"
+          [ -f model_info_response.json ] && cat model_info_response.json || echo "No response body"
+        else
+          echo "❌ Model info check FAILED with status code: $response"
+          [ -f model_info_response.json ] && cat model_info_response.json || echo "No response body"
+          exit 1
+        fi
 
-              - name: Create Test Images
-                run: |
-                  echo "=== Creating Test Images ==="
-                  python3 -c "
-          from PIL import Image
-          import base64
-          import io
-          import json
+    - name: Create Test Images
+      run: |
+        echo "=== Creating Test Images ==="
+        python3 -c "
+        from PIL import Image
+        import base64
+        import io
+        import json
 
-          def create_test_image(size=(160, 160), color=(255, 0, 0)):
-              img = Image.new('RGB', size, color)
-              buffer = io.BytesIO()
-              img.save(buffer, format='PNG')
-              img_str = base64.b64encode(buffer.getvalue()).decode()
-              return f'data:image/png;base64,{img_str}'
+        def create_test_image(size=(160, 160), color=(255, 0, 0)):
+            img = Image.new('RGB', size, color)
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            img_str = base64.b64encode(buffer.getvalue()).decode()
+            return f'data:image/png;base64,{img_str}'
 
-          # Create test images
-          red_image = create_test_image((160, 160), (255, 0, 0))
-          green_image = create_test_image((160, 160), (0, 255, 0))
-          blue_image = create_test_image((160, 160), (0, 0, 255))
+        # Create test images
+        red_image = create_test_image((160, 160), (255, 0, 0))
+        green_image = create_test_image((160, 160), (0, 255, 0))
+        blue_image = create_test_image((160, 160), (0, 0, 255))
 
-          # Save for later use
-          test_data = {
-              'red_image': red_image,
-              'green_image': green_image,
-              'blue_image': blue_image
-          }
+        # Save for later use
+        test_data = {
+            'red_image': red_image,
+            'green_image': green_image,
+            'blue_image': blue_image
+        }
 
-          with open('test_images.json', 'w') as f:
-              json.dump(test_data, f)
+        with open('test_images.json', 'w') as f:
+            json.dump(test_data, f)
+        
+        print('✅ Test images created successfully')
+        "
+            
+    - name: Test Compare Endpoint
+      run: |
+        echo "=== Testing Compare Endpoint ==="
+        API_URL="http://localhost:9002"
+        
+        # Create payload for comparison
+        python3 -c "
+        import json
+        with open('test_images.json') as f:
+            images = json.load(f)
+        
+        payload = {
+            'image1': images['red_image'],
+            'image2': images['green_image'],
+            'threshold': 0.6
+        }
+        
+        with open('compare_payload.json', 'w') as f:
+            json.dump(payload, f)
+        "
+        
+        if ! response=$(curl -s -w "%{http_code}" -X POST \
+          -H "Content-Type: application/json" \
+          -d @compare_payload.json \
+          -o compare_response.json \
+          "$API_URL/compare" 2>/dev/null); then
+          response="000"
+        fi
+        
+        if [ "$response" = "200" ]; then
+          echo "✅ Compare endpoint PASSED"
+          echo "Response:"
+          if [ -f compare_response.json ] && [ -s compare_response.json ]; then
+            python3 -m json.tool < compare_response.json || cat compare_response.json
+          fi
           
-          print('✅ Test images created successfully')
-          "
-              
-              - name: Test Compare Endpoint
-                run: |
-                  echo "=== Testing Compare Endpoint ==="
-                  API_URL="http://localhost:9002"
-                  
-                  # Create payload for comparison
-                  python3 -c "
-          import json
-          with open('test_images.json') as f:
-              images = json.load(f)
-          
-          payload = {
-              'image1': images['red_image'],
-              'image2': images['green_image'],
-              'threshold': 0.6
-          }
-          
-          with open('compare_payload.json', 'w') as f:
-              json.dump(payload, f)
-          "
-                  
-                  if ! response=$(curl -s -w "%{http_code}" -X POST \
-                    -H "Content-Type: application/json" \
-                    -d @compare_payload.json \
-                    -o compare_response.json \
-                    "$API_URL/compare" 2>/dev/null); then
-                    response="000"
-                  fi
-                  
-                  if [ "$response" = "200" ]; then
-                    echo "✅ Compare endpoint PASSED"
-                    echo "Response:"
-                    if [ -f compare_response.json ] && [ -s compare_response.json ]; then
-                      python3 -m json.tool < compare_response.json || cat compare_response.json
-                    fi
-                    
-                    # Validate response structure
-                    python3 -c "
+          # Validate response structure
+          python3 -c "
           import json
           import sys
           try:
@@ -260,79 +262,79 @@ jobs:
               print(f'❌ Error parsing response: {e}')
               sys.exit(1)
           "
-                  elif [ "$response" = "503" ]; then
-                    echo "⚠️ Service unavailable (503) - model may not be loaded"
-                    [ -f compare_response.json ] && cat compare_response.json || echo "No response body"
-                  else
-                    echo "❌ Compare endpoint FAILED with status code: $response"
-                    [ -f compare_response.json ] && cat compare_response.json || echo "No response body"
-                    exit 1
-                  fi
-              
-              - name: Test Compare Invalid Data
-                run: |
-                  echo "=== Testing Compare Endpoint with Invalid Data ==="
-                  API_URL="http://localhost:9002"
-                  
-                  # Test with missing image1
-                  echo '{"image2": "data:image/png;base64,invalid"}' > invalid_payload.json
-                  
-                  if ! response=$(curl -s -w "%{http_code}" -X POST \
-                    -H "Content-Type: application/json" \
-                    -d @invalid_payload.json \
-                    -o invalid_response.json \
-                    "$API_URL/compare" 2>/dev/null); then
-                    response="000"
-                  fi
-                  
-                  if [ "$response" = "400" ]; then
-                    echo "✅ Invalid data test PASSED - correctly rejected with 400"
-                  else
-                    echo "❌ Invalid data test FAILED - expected 400, got: $response"
-                    [ -f invalid_response.json ] && cat invalid_response.json || echo "No response body"
-                  fi
-              
-              - name: Test Batch Compare Endpoint
-                run: |
-                  echo "=== Testing Batch Compare Endpoint ==="
-                  API_URL="http://localhost:9002"
-                  
-                  # Create batch payload
-                  python3 -c "
-          import json
-          with open('test_images.json') as f:
-              images = json.load(f)
+        elif [ "$response" = "503" ]; then
+          echo "⚠️ Service unavailable (503) - model may not be loaded"
+          [ -f compare_response.json ] && cat compare_response.json || echo "No response body"
+        else
+          echo "❌ Compare endpoint FAILED with status code: $response"
+          [ -f compare_response.json ] && cat compare_response.json || echo "No response body"
+          exit 1
+        fi
+    
+    - name: Test Compare Invalid Data
+      run: |
+        echo "=== Testing Compare Endpoint with Invalid Data ==="
+        API_URL="http://localhost:9002"
+        
+        # Test with missing image1
+        echo '{"image2": "data:image/png;base64,invalid"}' > invalid_payload.json
+        
+        if ! response=$(curl -s -w "%{http_code}" -X POST \
+          -H "Content-Type: application/json" \
+          -d @invalid_payload.json \
+          -o invalid_response.json \
+          "$API_URL/compare" 2>/dev/null); then
+          response="000"
+        fi
+        
+        if [ "$response" = "400" ]; then
+          echo "✅ Invalid data test PASSED - correctly rejected with 400"
+        else
+          echo "❌ Invalid data test FAILED - expected 400, got: $response"
+          [ -f invalid_response.json ] && cat invalid_response.json || echo "No response body"
+        fi
+    
+    - name: Test Batch Compare Endpoint
+      run: |
+        echo "=== Testing Batch Compare Endpoint ==="
+        API_URL="http://localhost:9002"
+        
+        # Create batch payload
+        python3 -c "
+        import json
+        with open('test_images.json') as f:
+            images = json.load(f)
+        
+        payload = {
+            'pairs': [
+                {'image1': images['red_image'], 'image2': images['green_image']},
+                {'image1': images['green_image'], 'image2': images['blue_image']},
+                {'image1': images['red_image'], 'image2': images['blue_image']}
+            ],
+            'threshold': 0.6
+        }
+        
+        with open('batch_payload.json', 'w') as f:
+            json.dump(payload, f)
+        "
+        
+        if ! response=$(curl -s -w "%{http_code}" -X POST \
+          -H "Content-Type: application/json" \
+          -d @batch_payload.json \
+          -o batch_response.json \
+          "$API_URL/batch_compare" 2>/dev/null); then
+          response="000"
+        fi
+        
+        if [ "$response" = "200" ]; then
+          echo "✅ Batch compare endpoint PASSED"
+          echo "Response:"
+          if [ -f batch_response.json ] && [ -s batch_response.json ]; then
+            python3 -m json.tool < batch_response.json || cat batch_response.json
+          fi
           
-          payload = {
-              'pairs': [
-                  {'image1': images['red_image'], 'image2': images['green_image']},
-                  {'image1': images['green_image'], 'image2': images['blue_image']},
-                  {'image1': images['red_image'], 'image2': images['blue_image']}
-              ],
-              'threshold': 0.6
-          }
-          
-          with open('batch_payload.json', 'w') as f:
-              json.dump(payload, f)
-          "
-                  
-                  if ! response=$(curl -s -w "%{http_code}" -X POST \
-                    -H "Content-Type: application/json" \
-                    -d @batch_payload.json \
-                    -o batch_response.json \
-                    "$API_URL/batch_compare" 2>/dev/null); then
-                    response="000"
-                  fi
-                  
-                  if [ "$response" = "200" ]; then
-                    echo "✅ Batch compare endpoint PASSED"
-                    echo "Response:"
-                    if [ -f batch_response.json ] && [ -s batch_response.json ]; then
-                      python3 -m json.tool < batch_response.json || cat batch_response.json
-                    fi
-                    
-                    # Validate response structure
-                    python3 -c "
+          # Validate response structure
+          python3 -c "
           import json
           import sys
           try:
@@ -357,37 +359,37 @@ jobs:
               print(f'❌ Error parsing response: {e}')
               sys.exit(1)
           "
-                  elif [ "$response" = "503" ]; then
-                    echo "⚠️ Service unavailable (503) - model may not be loaded"
-                    [ -f batch_response.json ] && cat batch_response.json || echo "No response body"
-                  else
-                    echo "❌ Batch compare endpoint FAILED with status code: $response"
-                    [ -f batch_response.json ] && cat batch_response.json || echo "No response body"
-                  fi
-              
-              - name: Test Verify User Endpoint
-                run: |
-                  echo "=== Testing Verify User Endpoint ==="
-                  API_URL="http://localhost:9002"
-                  
-                  # Create user verification payload
-                  python3 -c "
-          import json
-          with open('test_images.json') as f:
-              images = json.load(f)
-          
-          payload = {
-              'userId': 'test_user_123',
-              'images': [images['red_image']],
-              'threshold': 0.6,
-              'min_verification_images': 1,
-              'max_verification_images': 5
-          }
-          
-          with open('verify_payload.json', 'w') as f:
-              json.dump(payload, f)
-          "
+        elif [ "$response" = "503" ]; then
+          echo "⚠️ Service unavailable (503) - model may not be loaded"
+          [ -f batch_response.json ] && cat batch_response.json || echo "No response body"
+        else
+          echo "❌ Batch compare endpoint FAILED with status code: $response"
+          [ -f batch_response.json ] && cat batch_response.json || echo "No response body"
+        fi
+    
+    - name: Test Verify User Endpoint
+      run: |
+        echo "=== Testing Verify User Endpoint ==="
+        API_URL="http://localhost:9002"
         
+        # Create user verification payload
+        python3 -c "
+        import json
+        with open('test_images.json') as f:
+            images = json.load(f)
+        
+        payload = {
+            'userId': 'test_user_123',
+            'images': [images['red_image']],
+            'threshold': 0.6,
+            'min_verification_images': 1,
+            'max_verification_images': 5
+        }
+        
+        with open('verify_payload.json', 'w') as f:
+            json.dump(payload, f)
+        "
+
         if ! response=$(curl -s -w "%{http_code}" -X POST \
           -H "Content-Type: application/json" \
           -d @verify_payload.json \
@@ -411,7 +413,7 @@ jobs:
           echo "❌ Verify user endpoint unexpected status: $response"
           [ -f verify_response.json ] && cat verify_response.json || echo "No response body"
         fi
-    
+
     - name: Test Performance
       run: |
         echo "=== Testing API Performance ==="
@@ -449,7 +451,7 @@ jobs:
         else
           echo "⚠️ Compare payload not found, skipping performance test"
         fi
-    
+
     - name: Show API logs (if containerized)
       if: always()
       run: |
@@ -467,13 +469,14 @@ jobs:
         else
           echo "Docker not available - skipping container logs"
         fi
-    
+
     - name: Cleanup
       if: always()
       run: |
         echo "=== Cleanup ==="
-        if [ -f "docker-compose.yml" ] || [ -f "compose.yml" ]; then
+        if [ -f "./extensions/docker-compose.yml" ] || [ -f "./extensions/compose.yml" ]; then
           echo "Stopping services..."
+          cd ./extensions
           docker compose down 2>/dev/null || true
         fi
         
