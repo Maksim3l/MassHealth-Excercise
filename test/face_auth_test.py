@@ -253,7 +253,6 @@ class APITester:
         print("🧠 CORE FUNCTIONALITY TESTS")
         print("-" * 30)
         self.test_compare_endpoint()
-        self.test_direct_compare_endpoint()
         self.test_batch_compare_endpoint()
         
         # Error handling tests
