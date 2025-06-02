@@ -91,28 +91,28 @@ jobs:
           
           # Check required fields
           python3 -c "
-import json
-import sys
-try:
-    with open('health_response.json') as f:
-        content = f.read().strip()
-        if not content:
-            print('❌ Empty response')
-            sys.exit(1)
-        data = json.loads(content)
-    required = ['status', 'model_loaded', 'model_type', 'device']
-    missing = [field for field in required if field not in data]
-    if missing:
-        print(f'❌ Missing fields: {missing}')
-        sys.exit(1)
-    if data.get('status') != 'healthy':
-        print(f'❌ Status not healthy: {data.get(\"status\")}')
-        sys.exit(1)
-    print('✅ All required fields present and status is healthy')
-except Exception as e:
-    print(f'❌ Error parsing response: {e}')
-    sys.exit(1)
-"
+          import json
+          import sys
+          try:
+              with open('health_response.json') as f:
+                  content = f.read().strip()
+                  if not content:
+                      print('❌ Empty response')
+                      sys.exit(1)
+                  data = json.loads(content)
+              required = ['status', 'model_loaded', 'model_type', 'device']
+              missing = [field for field in required if field not in data]
+              if missing:
+                  print(f'❌ Missing fields: {missing}')
+                  sys.exit(1)
+              if data.get('status') != 'healthy':
+                  print(f'❌ Status not healthy: {data.get(\"status\")}')
+                  sys.exit(1)
+              print('✅ All required fields present and status is healthy')
+          except Exception as e:
+              print(f'❌ Error parsing response: {e}')
+              sys.exit(1)
+          "
         else
           echo "❌ Health check FAILED with status code: $response"
           [ -f health_response.json ] && cat health_response.json || echo "No response body"
@@ -137,256 +137,256 @@ except Exception as e:
           
           # Check required fields
           python3 -c "
-import json
-import sys
-try:
-    with open('model_info_response.json') as f:
-        content = f.read().strip()
-        if not content:
-            print('❌ Empty response')
-            sys.exit(1)
-        data = json.loads(content)
-    required = ['model_loaded', 'model_type', 'total_parameters', 'embedding_size']
-    missing = [field for field in required if field not in data]
-    if missing:
-        print(f'❌ Missing fields: {missing}')
-        sys.exit(1)
-    print('✅ All required fields present')
-    print(f'Model type: {data.get(\"model_type\")}')
-    print(f'Parameters: {data.get(\"total_parameters\")}')
-except Exception as e:
-    print(f'❌ Error parsing response: {e}')
-    sys.exit(1)
-"
-        elif [ "$response" = "503" ]; then
-          echo "⚠️ Model not loaded (503) - this may be expected"
-          [ -f model_info_response.json ] && cat model_info_response.json || echo "No response body"
-        else
-          echo "❌ Model info check FAILED with status code: $response"
-          [ -f model_info_response.json ] && cat model_info_response.json || echo "No response body"
-          exit 1
-        fi
-    
-    - name: Create Test Images
-      run: |
-        echo "=== Creating Test Images ==="
-        python3 -c "
-from PIL import Image
-import base64
-import io
-import json
+          import json
+          import sys
+          try:
+              with open('model_info_response.json') as f:
+                  content = f.read().strip()
+                  if not content:
+                      print('❌ Empty response')
+                      sys.exit(1)
+                  data = json.loads(content)
+              required = ['model_loaded', 'model_type', 'total_parameters', 'embedding_size']
+              missing = [field for field in required if field not in data]
+              if missing:
+                  print(f'❌ Missing fields: {missing}')
+                  sys.exit(1)
+              print('✅ All required fields present')
+              print(f'Model type: {data.get(\"model_type\")}')
+              print(f'Parameters: {data.get(\"total_parameters\")}')
+          except Exception as e:
+              print(f'❌ Error parsing response: {e}')
+              sys.exit(1)
+          "
+                  elif [ "$response" = "503" ]; then
+                    echo "⚠️ Model not loaded (503) - this may be expected"
+                    [ -f model_info_response.json ] && cat model_info_response.json || echo "No response body"
+                  else
+                    echo "❌ Model info check FAILED with status code: $response"
+                    [ -f model_info_response.json ] && cat model_info_response.json || echo "No response body"
+                    exit 1
+                  fi
 
-def create_test_image(size=(160, 160), color=(255, 0, 0)):
-    img = Image.new('RGB', size, color)
-    buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
-    img_str = base64.b64encode(buffer.getvalue()).decode()
-    return f'data:image/png;base64,{img_str}'
+              - name: Create Test Images
+                run: |
+                  echo "=== Creating Test Images ==="
+                  python3 -c "
+          from PIL import Image
+          import base64
+          import io
+          import json
 
-# Create test images
-red_image = create_test_image((160, 160), (255, 0, 0))
-green_image = create_test_image((160, 160), (0, 255, 0))
-blue_image = create_test_image((160, 160), (0, 0, 255))
+          def create_test_image(size=(160, 160), color=(255, 0, 0)):
+              img = Image.new('RGB', size, color)
+              buffer = io.BytesIO()
+              img.save(buffer, format='PNG')
+              img_str = base64.b64encode(buffer.getvalue()).decode()
+              return f'data:image/png;base64,{img_str}'
 
-# Save for later use
-test_data = {
-    'red_image': red_image,
-    'green_image': green_image,
-    'blue_image': blue_image
-}
+          # Create test images
+          red_image = create_test_image((160, 160), (255, 0, 0))
+          green_image = create_test_image((160, 160), (0, 255, 0))
+          blue_image = create_test_image((160, 160), (0, 0, 255))
 
-with open('test_images.json', 'w') as f:
-    json.dump(test_data, f)
+          # Save for later use
+          test_data = {
+              'red_image': red_image,
+              'green_image': green_image,
+              'blue_image': blue_image
+          }
 
-print('✅ Test images created successfully')
-"
-    
-    - name: Test Compare Endpoint
-      run: |
-        echo "=== Testing Compare Endpoint ==="
-        API_URL="http://localhost:9002"
-        
-        # Create payload for comparison
-        python3 -c "
-import json
-with open('test_images.json') as f:
-    images = json.load(f)
-
-payload = {
-    'image1': images['red_image'],
-    'image2': images['green_image'],
-    'threshold': 0.6
-}
-
-with open('compare_payload.json', 'w') as f:
-    json.dump(payload, f)
-"
-        
-        if ! response=$(curl -s -w "%{http_code}" -X POST \
-          -H "Content-Type: application/json" \
-          -d @compare_payload.json \
-          -o compare_response.json \
-          "$API_URL/compare" 2>/dev/null); then
-          response="000"
-        fi
-        
-        if [ "$response" = "200" ]; then
-          echo "✅ Compare endpoint PASSED"
-          echo "Response:"
-          if [ -f compare_response.json ] && [ -s compare_response.json ]; then
-            python3 -m json.tool < compare_response.json || cat compare_response.json
-          fi
+          with open('test_images.json', 'w') as f:
+              json.dump(test_data, f)
           
-          # Validate response structure
-          python3 -c "
-import json
-import sys
-try:
-    with open('compare_response.json') as f:
-        content = f.read().strip()
-        if not content:
-            print('❌ Empty response')
-            sys.exit(1)
-        data = json.loads(content)
-    required = ['match', 'similarity_score', 'confidence', 'model_type']
-    missing = [field for field in required if field not in data]
-    if missing:
-        print(f'❌ Missing fields: {missing}')
-        sys.exit(1)
-    print('✅ All required fields present')
-    print(f'Match: {data.get(\"match\")}')
-    print(f'Similarity Score: {data.get(\"similarity_score\")}')
-except Exception as e:
-    print(f'❌ Error parsing response: {e}')
-    sys.exit(1)
-"
-        elif [ "$response" = "503" ]; then
-          echo "⚠️ Service unavailable (503) - model may not be loaded"
-          [ -f compare_response.json ] && cat compare_response.json || echo "No response body"
-        else
-          echo "❌ Compare endpoint FAILED with status code: $response"
-          [ -f compare_response.json ] && cat compare_response.json || echo "No response body"
-          exit 1
-        fi
-    
-    - name: Test Compare Invalid Data
-      run: |
-        echo "=== Testing Compare Endpoint with Invalid Data ==="
-        API_URL="http://localhost:9002"
-        
-        # Test with missing image1
-        echo '{"image2": "data:image/png;base64,invalid"}' > invalid_payload.json
-        
-        if ! response=$(curl -s -w "%{http_code}" -X POST \
-          -H "Content-Type: application/json" \
-          -d @invalid_payload.json \
-          -o invalid_response.json \
-          "$API_URL/compare" 2>/dev/null); then
-          response="000"
-        fi
-        
-        if [ "$response" = "400" ]; then
-          echo "✅ Invalid data test PASSED - correctly rejected with 400"
-        else
-          echo "❌ Invalid data test FAILED - expected 400, got: $response"
-          [ -f invalid_response.json ] && cat invalid_response.json || echo "No response body"
-        fi
-    
-    - name: Test Batch Compare Endpoint
-      run: |
-        echo "=== Testing Batch Compare Endpoint ==="
-        API_URL="http://localhost:9002"
-        
-        # Create batch payload
-        python3 -c "
-import json
-with open('test_images.json') as f:
-    images = json.load(f)
-
-payload = {
-    'pairs': [
-        {'image1': images['red_image'], 'image2': images['green_image']},
-        {'image1': images['green_image'], 'image2': images['blue_image']},
-        {'image1': images['red_image'], 'image2': images['blue_image']}
-    ],
-    'threshold': 0.6
-}
-
-with open('batch_payload.json', 'w') as f:
-    json.dump(payload, f)
-"
-        
-        if ! response=$(curl -s -w "%{http_code}" -X POST \
-          -H "Content-Type: application/json" \
-          -d @batch_payload.json \
-          -o batch_response.json \
-          "$API_URL/batch_compare" 2>/dev/null); then
-          response="000"
-        fi
-        
-        if [ "$response" = "200" ]; then
-          echo "✅ Batch compare endpoint PASSED"
-          echo "Response:"
-          if [ -f batch_response.json ] && [ -s batch_response.json ]; then
-            python3 -m json.tool < batch_response.json || cat batch_response.json
-          fi
+          print('✅ Test images created successfully')
+          "
+              
+              - name: Test Compare Endpoint
+                run: |
+                  echo "=== Testing Compare Endpoint ==="
+                  API_URL="http://localhost:9002"
+                  
+                  # Create payload for comparison
+                  python3 -c "
+          import json
+          with open('test_images.json') as f:
+              images = json.load(f)
           
-          # Validate response structure
-          python3 -c "
-import json
-import sys
-try:
-    with open('batch_response.json') as f:
-        content = f.read().strip()
-        if not content:
-            print('❌ Empty response')
-            sys.exit(1)
-        data = json.loads(content)
-    required = ['matches', 'detailed_results', 'total_pairs', 'successful_pairs']
-    missing = [field for field in required if field not in data]
-    if missing:
-        print(f'❌ Missing fields: {missing}')
-        sys.exit(1)
-    if len(data.get('matches', [])) != 3:
-        print(f'❌ Expected 3 matches, got: {len(data.get(\"matches\", []))}')
-        sys.exit(1)
-    print('✅ Batch compare validation passed')
-    print(f'Total pairs: {data.get(\"total_pairs\")}')
-    print(f'Successful pairs: {data.get(\"successful_pairs\")}')
-except Exception as e:
-    print(f'❌ Error parsing response: {e}')
-    sys.exit(1)
-"
-        elif [ "$response" = "503" ]; then
-          echo "⚠️ Service unavailable (503) - model may not be loaded"
-          [ -f batch_response.json ] && cat batch_response.json || echo "No response body"
-        else
-          echo "❌ Batch compare endpoint FAILED with status code: $response"
-          [ -f batch_response.json ] && cat batch_response.json || echo "No response body"
-        fi
-    
-    - name: Test Verify User Endpoint
-      run: |
-        echo "=== Testing Verify User Endpoint ==="
-        API_URL="http://localhost:9002"
-        
-        # Create user verification payload
-        python3 -c "
-import json
-with open('test_images.json') as f:
-    images = json.load(f)
-
-payload = {
-    'userId': 'test_user_123',
-    'images': [images['red_image']],
-    'threshold': 0.6,
-    'min_verification_images': 1,
-    'max_verification_images': 5
-}
-
-with open('verify_payload.json', 'w') as f:
-    json.dump(payload, f)
-"
+          payload = {
+              'image1': images['red_image'],
+              'image2': images['green_image'],
+              'threshold': 0.6
+          }
+          
+          with open('compare_payload.json', 'w') as f:
+              json.dump(payload, f)
+          "
+                  
+                  if ! response=$(curl -s -w "%{http_code}" -X POST \
+                    -H "Content-Type: application/json" \
+                    -d @compare_payload.json \
+                    -o compare_response.json \
+                    "$API_URL/compare" 2>/dev/null); then
+                    response="000"
+                  fi
+                  
+                  if [ "$response" = "200" ]; then
+                    echo "✅ Compare endpoint PASSED"
+                    echo "Response:"
+                    if [ -f compare_response.json ] && [ -s compare_response.json ]; then
+                      python3 -m json.tool < compare_response.json || cat compare_response.json
+                    fi
+                    
+                    # Validate response structure
+                    python3 -c "
+          import json
+          import sys
+          try:
+              with open('compare_response.json') as f:
+                  content = f.read().strip()
+                  if not content:
+                      print('❌ Empty response')
+                      sys.exit(1)
+                  data = json.loads(content)
+              required = ['match', 'similarity_score', 'confidence', 'model_type']
+              missing = [field for field in required if field not in data]
+              if missing:
+                  print(f'❌ Missing fields: {missing}')
+                  sys.exit(1)
+              print('✅ All required fields present')
+              print(f'Match: {data.get(\"match\")}')
+              print(f'Similarity Score: {data.get(\"similarity_score\")}')
+          except Exception as e:
+              print(f'❌ Error parsing response: {e}')
+              sys.exit(1)
+          "
+                  elif [ "$response" = "503" ]; then
+                    echo "⚠️ Service unavailable (503) - model may not be loaded"
+                    [ -f compare_response.json ] && cat compare_response.json || echo "No response body"
+                  else
+                    echo "❌ Compare endpoint FAILED with status code: $response"
+                    [ -f compare_response.json ] && cat compare_response.json || echo "No response body"
+                    exit 1
+                  fi
+              
+              - name: Test Compare Invalid Data
+                run: |
+                  echo "=== Testing Compare Endpoint with Invalid Data ==="
+                  API_URL="http://localhost:9002"
+                  
+                  # Test with missing image1
+                  echo '{"image2": "data:image/png;base64,invalid"}' > invalid_payload.json
+                  
+                  if ! response=$(curl -s -w "%{http_code}" -X POST \
+                    -H "Content-Type: application/json" \
+                    -d @invalid_payload.json \
+                    -o invalid_response.json \
+                    "$API_URL/compare" 2>/dev/null); then
+                    response="000"
+                  fi
+                  
+                  if [ "$response" = "400" ]; then
+                    echo "✅ Invalid data test PASSED - correctly rejected with 400"
+                  else
+                    echo "❌ Invalid data test FAILED - expected 400, got: $response"
+                    [ -f invalid_response.json ] && cat invalid_response.json || echo "No response body"
+                  fi
+              
+              - name: Test Batch Compare Endpoint
+                run: |
+                  echo "=== Testing Batch Compare Endpoint ==="
+                  API_URL="http://localhost:9002"
+                  
+                  # Create batch payload
+                  python3 -c "
+          import json
+          with open('test_images.json') as f:
+              images = json.load(f)
+          
+          payload = {
+              'pairs': [
+                  {'image1': images['red_image'], 'image2': images['green_image']},
+                  {'image1': images['green_image'], 'image2': images['blue_image']},
+                  {'image1': images['red_image'], 'image2': images['blue_image']}
+              ],
+              'threshold': 0.6
+          }
+          
+          with open('batch_payload.json', 'w') as f:
+              json.dump(payload, f)
+          "
+                  
+                  if ! response=$(curl -s -w "%{http_code}" -X POST \
+                    -H "Content-Type: application/json" \
+                    -d @batch_payload.json \
+                    -o batch_response.json \
+                    "$API_URL/batch_compare" 2>/dev/null); then
+                    response="000"
+                  fi
+                  
+                  if [ "$response" = "200" ]; then
+                    echo "✅ Batch compare endpoint PASSED"
+                    echo "Response:"
+                    if [ -f batch_response.json ] && [ -s batch_response.json ]; then
+                      python3 -m json.tool < batch_response.json || cat batch_response.json
+                    fi
+                    
+                    # Validate response structure
+                    python3 -c "
+          import json
+          import sys
+          try:
+              with open('batch_response.json') as f:
+                  content = f.read().strip()
+                  if not content:
+                      print('❌ Empty response')
+                      sys.exit(1)
+                  data = json.loads(content)
+              required = ['matches', 'detailed_results', 'total_pairs', 'successful_pairs']
+              missing = [field for field in required if field not in data]
+              if missing:
+                  print(f'❌ Missing fields: {missing}')
+                  sys.exit(1)
+              if len(data.get('matches', [])) != 3:
+                  print(f'❌ Expected 3 matches, got: {len(data.get(\"matches\", []))}')
+                  sys.exit(1)
+              print('✅ Batch compare validation passed')
+              print(f'Total pairs: {data.get(\"total_pairs\")}')
+              print(f'Successful pairs: {data.get(\"successful_pairs\")}')
+          except Exception as e:
+              print(f'❌ Error parsing response: {e}')
+              sys.exit(1)
+          "
+                  elif [ "$response" = "503" ]; then
+                    echo "⚠️ Service unavailable (503) - model may not be loaded"
+                    [ -f batch_response.json ] && cat batch_response.json || echo "No response body"
+                  else
+                    echo "❌ Batch compare endpoint FAILED with status code: $response"
+                    [ -f batch_response.json ] && cat batch_response.json || echo "No response body"
+                  fi
+              
+              - name: Test Verify User Endpoint
+                run: |
+                  echo "=== Testing Verify User Endpoint ==="
+                  API_URL="http://localhost:9002"
+                  
+                  # Create user verification payload
+                  python3 -c "
+          import json
+          with open('test_images.json') as f:
+              images = json.load(f)
+          
+          payload = {
+              'userId': 'test_user_123',
+              'images': [images['red_image']],
+              'threshold': 0.6,
+              'min_verification_images': 1,
+              'max_verification_images': 5
+          }
+          
+          with open('verify_payload.json', 'w') as f:
+              json.dump(payload, f)
+          "
         
         if ! response=$(curl -s -w "%{http_code}" -X POST \
           -H "Content-Type: application/json" \
