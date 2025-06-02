@@ -6,8 +6,8 @@ import SleepIcon from '../../../assets/tsxicons/sleepicon';
 import CustomDate from '../../../components/date';
 import { supabase } from '../../../utils/supabase';
 import CustomAlert from '../../../components/CustomAlert';  
-import useHealthDataios from '../../../hooks/useHealthDataios'
-import useHealthData from '../../../hooks/useHealthData'
+//import useHealthDataios from '../../../hooks/useHealthDataios'
+//import useHealthData from '../../../hooks/useHealthData'
 //EXPO GO USERS!! zakomentiraj hooks in rocno nastavi steps, flights, distance
 
 const width = Dimensions.get('window').width;
@@ -21,8 +21,8 @@ const home = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Use selectedDate instead of the fixed date
-  const androidHealthData = useHealthData(selectedDate);
-  const iosHealthData = useHealthDataios(selectedDate)
+  //const androidHealthData = useHealthData(selectedDate);
+  //const iosHealthData = useHealthDataios(selectedDate)
   
   useEffect(() => {
     const fetchProfile = async () => {
@@ -80,16 +80,16 @@ const home = () => {
     setSelectedDate(date);
   };
 
-  let sleep = 0;
-  let calories = 0;
+  let sleep = 3.5;
+  let calories = 274;
 
   if (Platform.OS === 'ios') {
       //When you have iOS hook ready, use it here
-      sleep = iosHealthData?.sleepingHours || 0;
-      calories = iosHealthData?.calories || 0;
+    //sleep = iosHealthData?.sleepingHours || 0;
+    //calories = iosHealthData?.calories || 0;
     } else if (Platform.OS === 'android') {
-      sleep = androidHealthData.sleep;
-      calories = androidHealthData.energy;
+    //sleep = androidHealthData.sleep;
+    //calories = androidHealthData.energy;
     }
 
   return (
