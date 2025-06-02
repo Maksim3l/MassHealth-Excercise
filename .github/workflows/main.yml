@@ -26,7 +26,7 @@ jobs:
       run: |
         cd extensions/mosquitto
         # Use the newer docker compose command (space, not hyphen)
-        docker compose up -d
+        docker compose --file docker-compose.yml up -d mosquitto --wait
         
     - name: Wait for Mosquitto to be ready
       run: |
