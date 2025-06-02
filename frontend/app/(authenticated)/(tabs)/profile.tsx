@@ -1,5 +1,5 @@
-import { View, Text, SafeAreaView, Image, StyleSheet, TouchableOpacity, Alert, FlatList } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import { View, Text, SafeAreaView, Image, StyleSheet, TouchableOpacity, Alert, FlatList, Button } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Paho from 'paho-mqtt';
 import { Dimensions } from 'react-native';
@@ -14,6 +14,7 @@ import CustomAlert from '../../../components/CustomAlert';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height;
+
 const signOut = async () => {
   try {
     if (global.mqttClient && global.mqttClient.isConnected()) {
@@ -60,7 +61,6 @@ const signOut = async () => {
     console.error('Error during sign out:', error);
   }
 };
-
 
 const findUserByUsername = async (username: string) => {
   console.log("Searching for username:", username); 
@@ -293,6 +293,107 @@ const getFriends = async () => {
   }
 };
 
+const enable2FA = async () => {
+  try {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      throw userError;
+    }
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Toggle 2FA status in the database
+    const { data, error } = await supabase
+      .from('User_Metadata')
+      .update({ '2FA': true })
+      .eq('user_id', user.id)
+      .select('2FA')
+      .single();
+      
+    if (error) {
+      throw error;
+    }
+    
+    return {
+      success: true,
+      enabled: data['2FA']
+    };
+  } catch (error) {
+    console.error("Error enabling 2FA:", error);
+    return {
+      success: false,
+      error
+    };
+  }
+};
+
+const check2FAStatus = async () => {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return false;
+    }
+    
+    const { data, error } = await supabase
+      .from('User_Metadata')
+      .select('2FA')
+      .eq('user_id', user.id)
+      .single();
+      
+    if (error) {
+      return false;
+    }
+    
+    return data['2FA'] || false;
+  } catch (error) {
+    console.error("Error checking 2FA status:", error);
+    return false;
+  }
+};
+
+const disable2FA = async () => {
+  try {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      throw userError;
+    }
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Toggle 2FA status to false in the database
+    const { data, error } = await supabase
+      .from('User_Metadata')
+      .update({ '2FA': false })
+      .eq('user_id', user.id)
+      .select('2FA')
+      .single();
+      
+    if (error) {
+      throw error;
+    }
+    
+    return {
+      success: true,
+      enabled: data['2FA']
+    };
+  } catch (error) {
+    console.error("Error disabling 2FA:", error);
+    return {
+      success: false,
+      error
+    };
+  }
+};
+
 interface PendingRequest {
   id: any;
   status: any;
@@ -310,16 +411,79 @@ interface Friend {
   name: string;
   username: string;
 }
+
 const Profile = () => {
   const [profile, setProfile] = useState({ name: '', username: '' });
-  const [friendUsername, setFriendUsername] = useState(''); // Fixed: String -> ''
+  const [friendUsername, setFriendUsername] = useState(''); 
   const [customAlertVisible, setCustomAlertVisible] = useState(false);
   const [customAlertMessage, setCustomAlertMessage] = useState('');
   const [customAlertTitle, setCustomAlertTitle] = useState('Alert');
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('add'); // 'add', 'requests', or 'friends'
+  const [activeTab, setActiveTab] = useState('add'); 
+  const [twofactorauth, setTwofactorAuth] = useState(false);
+  const [enabling2FA, setEnabling2FA] = useState(false);
+
+  // Handle 2FA toggle - simplified without camera
+  const handle2FAToggle = async () => {
+    if (twofactorauth) {
+      // Disabling 2FA
+      setEnabling2FA(true);
+      try {
+        const result = await disable2FA();
+        
+        if (result.success) {
+          setTwofactorAuth(false);
+        } else {
+          setCustomAlertTitle('Error');
+          setCustomAlertMessage('Failed to disable two-factor authentication');
+          setCustomAlertVisible(true);
+        }
+      } catch (error) {
+        console.error("Error disabling 2FA:", error);
+        setCustomAlertTitle('Error');
+        setCustomAlertMessage('An error occurred while disabling 2FA');
+        setCustomAlertVisible(true);
+      } finally {
+        setEnabling2FA(false);
+      }
+    } else {
+      // Enabling 2FA
+      setEnabling2FA(true);
+      try {
+        const result = await enable2FA();
+        
+        if (result.success) {
+          setTwofactorAuth(true);
+          setCustomAlertTitle('Success');
+          setCustomAlertMessage('Two-factor authentication has been enabled');
+          setCustomAlertVisible(true);
+        } else {
+          setCustomAlertTitle('Error');
+          setCustomAlertMessage('Failed to enable two-factor authentication');
+          setCustomAlertVisible(true);
+        }
+      } catch (error) {
+        console.error("Error enabling 2FA:", error);
+        setCustomAlertTitle('Error');
+        setCustomAlertMessage('An error occurred while enabling 2FA');
+        setCustomAlertVisible(true);
+      } finally {
+        setEnabling2FA(false);
+      }
+    }
+  };
+
+  // Check 2FA status when component loads
+  useEffect(() => {
+    const load2FAStatus = async () => {
+      const status = await check2FAStatus();
+      setTwofactorAuth(status);
+    };
+    
+    load2FAStatus();
+  }, []);
 
   const fetchPendingRequests = async () => {
     setIsLoading(true);
@@ -441,7 +605,7 @@ const Profile = () => {
       setCustomAlertVisible(true);
     }
   };
-  
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.sectionTitle}>
@@ -460,10 +624,25 @@ const Profile = () => {
         <Text style={styles.username}>{profile.username}</Text>
       </View>
 
-
-      
       <View style={styles.subsectiontitle}>
         <Text style={styles.subsectiontitletext}>Preferences</Text>
+        <TouchableOpacity 
+          style={[
+            styles.toggleButton, 
+            { backgroundColor: twofactorauth ? '#ff6b6b' : '#6E49EB' }
+          ]}
+          onPress={async () => {
+            await handle2FAToggle();
+            if (!twofactorauth) { 
+              router.push('../FaceAuthTakePic');
+            }
+          }}
+          disabled={enabling2FA}
+        >
+          <Text style={styles.toggleButtonText}>
+            {enabling2FA ? 'Processing...' : (twofactorauth ? "Disable 2FA" : "Enable 2FA")}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.option} onPress={signOut}>
           <LogoutIcon stroke="#6E49EB" strokeWidth={18} width={24} height={24} fillColor="none" />
           <View style={styles.optiontitle}>
@@ -597,8 +776,8 @@ const styles = StyleSheet.create({
     padding: 10
   },
   circle: {
-    width: 120,           
-    height: 120,
+    width: 100,           
+    height: 100,
     borderRadius: 70,  
     overflow: 'hidden',   
     justifyContent: 'center',
@@ -632,7 +811,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 10
+    paddingVertical: 5
   },
   optiontitle: {
     margin: 10,
@@ -641,10 +820,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500'
   },
-  // Tab styles
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: 15,
+    marginBottom: 5,
   },
   tab: {
     flex: 1,
@@ -661,11 +839,9 @@ const styles = StyleSheet.create({
   tabText: {
     fontWeight: '500',
   },
-  // Add friend section
   addFriendContainer: {
-    marginBottom: 15,
+    marginBottom: 10,
   },
-  // Requests section
   requestsContainer: {
     marginBottom: 15,
   },
@@ -710,7 +886,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '500',
   },
-  // Friends section
   friendsContainer: {
     marginBottom: 15,
   },
@@ -733,6 +908,25 @@ const styles = StyleSheet.create({
   friendUsername: {
     fontSize: 14,
     color: '#666',
+  },
+  toggleButton: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginVertical: 10,
+    marginHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  toggleButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
