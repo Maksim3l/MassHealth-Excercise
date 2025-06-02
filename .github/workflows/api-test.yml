@@ -28,7 +28,7 @@ jobs:
     
     - name: Check if API service is configured
       run: |
-        if [ -f "./extensions/docker-compose.yml" ] || [ -f "./extensions/compose.yml" ]; then
+        if [ -f "./extensions/docker-compose.test.yml" ] || [ -f "./extensions/compose.yml" ]; then
           echo "Docker compose file found in extensions directory"
           ls -la ./extensions/*compose*.yml 2>/dev/null || echo "No compose files found"
         else
@@ -37,10 +37,10 @@ jobs:
     
     - name: Start Face Verification API (if docker-compose exists)
       run: |
-        if [ -f "./extensions/docker-compose.yml" ]; then
+        if [ -f "./extensions/docker-compose.test.yml" ]; then
           echo "Starting face-verification-api service with docker-compose..."
           cd ./extensions
-          docker compose --file docker-compose.yml up -d face-verification-api --wait
+          docker compose --file docker-compose.test.yml up -d face-verification-api --wait
         elif [ -f "./extensions/compose.yml" ]; then
           echo "Starting face-verification-api service with compose.yml..."
           cd ./extensions
