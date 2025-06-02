@@ -23,6 +23,7 @@ services:
       - mosquitto
     networks:
       - app-network
+      - supabase_default
 
   mosquitto:
     container_name: mosquitto
@@ -42,4 +43,6 @@ services:
 
 networks:
   app-network:
-    driver: bridge
+    external: true
+  supabase_default:
+    external: true 

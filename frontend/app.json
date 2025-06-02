@@ -69,8 +69,6 @@
         "android.permission.health.WRITE_FLOORS_CLIMBED",
         "android.permission.health.READ_HEART_RATE"
 
-
-
       ]
     },
     "web": {

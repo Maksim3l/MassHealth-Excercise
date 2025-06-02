@@ -526,3 +526,8 @@ services:
 
 volumes:
   db-config:
+  
+networks:
+  default:
+    name: supabase_default
+    external: true

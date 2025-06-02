@@ -523,6 +523,8 @@ function Configure-Frontend {
     }
 }
 
+# Modified Start-Frontend function with production mode options
+
 function Start-Frontend {
     Write-Host "Frontend Platform Selection" -ForegroundColor Cyan
 
@@ -536,15 +538,17 @@ function Start-Frontend {
 
     # Platform selection
     Write-Host "`nSelect platform to run:" -ForegroundColor Yellow
-    Write-Host "1) iOS (native)" -ForegroundColor Cyan
+    Write-Host "1) iOS (native - production mode)" -ForegroundColor Cyan
     Write-Host "2) Expo Go (Docker container)" -ForegroundColor Cyan
-    Write-Host "3) Android (native)" -ForegroundColor Cyan
+    Write-Host "3) Android (native - production mode)" -ForegroundColor Cyan
+    Write-Host "4) iOS (native - development mode)" -ForegroundColor Gray
+    Write-Host "5) Android (native - development mode)" -ForegroundColor Gray
     
-    $platformChoice = Read-Host "Enter choice (1-3)"
+    $platformChoice = Read-Host "Enter choice (1-5)"
     
     switch ($platformChoice) {
         "1" { 
-            Write-Host "Starting Expo for iOS (native)..." -ForegroundColor Green
+            Write-Host "Starting Expo for iOS (native - production mode)..." -ForegroundColor Green
             
             # Change to frontend directory and configure
             Push-Location $frontendPath
@@ -555,10 +559,11 @@ function Start-Frontend {
                 Pop-Location
             }
             
-            $command = "cd `"$frontendPath`" ; npx expo start --ios"
+            # Production mode command with dev tools
+            $command = "cd `"$frontendPath`" ; npx expo start --ios --no-dev --minify"
             Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
             
-            Write-Host "iOS native Expo started in new console" -ForegroundColor Green
+            Write-Host "iOS native Expo started in production mode in new console" -ForegroundColor Green
         }
         "2" { 
             Write-Host "Starting Expo Go in Docker container..." -ForegroundColor Green
@@ -583,7 +588,7 @@ function Start-Frontend {
             try {
                 Push-Location $frontendPath
 
-                $dockerCommand = "docker-compose up"
+                $dockerCommand = "docker-compose up -d --build"
                 Write-Host "Running: $dockerCommand in $frontendPath" -ForegroundColor Gray
 
                 Invoke-Expression $dockerCommand
@@ -601,7 +606,38 @@ function Start-Frontend {
             Write-Host "Use the Expo Go app to scan the QR code" -ForegroundColor Cyan
         }
         "3" { 
-            Write-Host "Starting Expo for Android (native)..." -ForegroundColor Green
+            Write-Host "Starting Expo for Android (native - production mode)..." -ForegroundColor Green
+            Push-Location $frontendPath
+            try {
+                Configure-Frontend -Platform "android"
+            }
+            finally {
+                Pop-Location
+            }
+
+            $command = "cd `"$frontendPath`" ; npx expo start --android --no-dev --minify"
+            Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
+            
+            Write-Host "Android native Expo started in production mode in new console" -ForegroundColor Green
+        }
+        "4" { 
+            Write-Host "Starting Expo for iOS (native - development mode)..." -ForegroundColor Green
+            
+            Push-Location $frontendPath
+            try {
+                Configure-Frontend -Platform "ios"
+            }
+            finally {
+                Pop-Location
+            }
+            
+            $command = "cd `"$frontendPath`" ; npx expo start --ios"
+            Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
+            
+            Write-Host "iOS native Expo started in development mode in new console" -ForegroundColor Green
+        }
+        "5" { 
+            Write-Host "Starting Expo for Android (native - development mode)..." -ForegroundColor Green
             Push-Location $frontendPath
             try {
                 Configure-Frontend -Platform "android"
@@ -613,9 +649,7 @@ function Start-Frontend {
             $command = "cd `"$frontendPath`" ; npx expo start --android"
             Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
             
-            Write-Host "Android native Expo started in new console" -ForegroundColor Green
-            Write-Host "Note: If you need to navigate to a specific screen for Android testing," -ForegroundColor Yellow
-            Write-Host "you can manually navigate to: frontend/app/(authenticated)/(tabs)" -ForegroundColor Yellow
+            Write-Host "Android native Expo started in development mode in new console" -ForegroundColor Green
         }
         default { 
             Write-Host "Invalid choice. Starting Expo Go in Docker container as default..." -ForegroundColor Yellow
@@ -707,8 +741,66 @@ function Restart-Frontend {
     Write-Host "Frontend restarted." -ForegroundColor Green
 }
 
+function Remove-DockerNetworkSafely {
+    param([string]$NetworkName)
+   
+    try {
+        $networkExists = docker network ls --format "{{.Name}}" | Where-Object { $_ -eq $NetworkName }
+        if ($networkExists) {
+            Write-Host "Removing existing network: $NetworkName" -ForegroundColor Yellow
+            docker network rm $NetworkName | Out-Null
+        }
+    }
+    catch {
+    }
+}
+
+function New-DockerNetwork {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$NetworkName
+    )
+    
+    try {
+        $existingNetwork = docker network ls --format "{{.Name}}" | Where-Object { $_ -eq $NetworkName }
+        
+        if ($existingNetwork) {
+            Write-Host "Network '$NetworkName' already exists, skipping creation" -ForegroundColor Yellow
+            return
+        }
+        
+        Write-Host "Creating Docker network: $NetworkName" -ForegroundColor Cyan
+        $result = docker network create $NetworkName 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Successfully created network: $NetworkName" -ForegroundColor Green
+        } else {
+            Write-Host "Warning: Failed to create network '$NetworkName': $result" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Host "Error creating network '$NetworkName': $_" -ForegroundColor Yellow
+    }
+}
+
+
 Clear-Host
 Write-Host "Starting development environment..." -ForegroundColor Green
+
+Write-Host "Setting up Docker networks..." -ForegroundColor Green
+
+# Remove existing networks if they exist
+Remove-DockerNetworkSafely "app-network"
+Remove-DockerNetworkSafely "supabase_default"
+Remove-DockerNetworkSafely "frontend-network"
+
+# Create networks
+New-DockerNetwork "app-network"
+New-DockerNetwork "supabase_default"
+New-DockerNetwork "frontend-network"
+
+Write-Host ""
+Write-Host "Checking project structure..." -ForegroundColor Green
 
 if (-not (Test-Path -Path ".\frontend")) {
     Write-Host "Frontend directory not found. Please run this script from the project root." -ForegroundColor Red
