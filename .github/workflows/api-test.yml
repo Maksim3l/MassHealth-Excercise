@@ -77,51 +77,48 @@ jobs:
         fi
         exit 1
     
-    - name: Test Health Endpoint
-      run: |
-        echo "=== Testing Health Endpoint ==="
-        API_URL="http://localhost:9002"
-        
-        if ! response=$(curl -s -w "%{http_code}" -o health_response.json "$API_URL/health" 2>/dev/null); then
-          response="000"
-        fi
-        
-        if [ "$response" = "200" ]; then
-          echo "✅ Health check PASSED"
-          echo "Response:"
-          if [ -f health_response.json ] && [ -s health_response.json ]; then
-            python3 -m json.tool < health_response.json || cat health_response.json
-          fi
-          
-          # Check required fields
-          python3 -c "
-          import json
-          import sys
-          try:
-              with open('health_response.json') as f:
-                  content = f.read().strip()
-                  if not content:
-                      print('❌ Empty response')
-                      sys.exit(1)
-                  data = json.loads(content)
-              required = ['status', 'model_loaded', 'model_type', 'device']
-              missing = [field for field in required if field not in data]
-              if missing:
-                  print(f'❌ Missing fields: {missing}')
-                  sys.exit(1)
-              if data.get('status') != 'healthy':
-                  print(f'❌ Status not healthy: {data.get(\"status\")}')
-                  sys.exit(1)
-              print('✅ All required fields present and status is healthy')
-          except Exception as e:
-              print(f'❌ Error parsing response: {e}')
-              sys.exit(1)
-          "
-        else
-          echo "❌ Health check FAILED with status code: $response"
-          [ -f health_response.json ] && cat health_response.json || echo "No response body"
-          exit 1
-        fi
+- name: Test Health Endpoint
+  run: |
+    echo "=== Testing Health Endpoint ==="
+    API_URL="http://localhost:9002"
+
+    if ! response=$(curl -s -w "%{http_code}" -o health_response.json "$API_URL/health" 2>/dev/null); then
+      response="000"
+    fi
+
+    if [ "$response" = "200" ]; then
+      echo "✅ Health check PASSED"
+      echo "Response:"
+      if [ -f health_response.json ] && [ -s health_response.json ]; then
+        python3 -m json.tool < health_response.json || cat health_response.json
+      fi
+
+      python3 -c "import json
+import sys
+try:
+    with open('health_response.json') as f:
+        content = f.read().strip()
+        if not content:
+            print('❌ Empty response')
+            sys.exit(1)
+        data = json.loads(content)
+    required = ['status', 'model_loaded', 'model_type', 'device']
+    missing = [field for field in required if field not in data]
+    if missing:
+        print(f'❌ Missing fields: {missing}')
+        sys.exit(1)
+    if data.get('status') != 'healthy':
+        print(f'❌ Status not healthy: {data.get(\"status\")}')
+        sys.exit(1)
+    print('✅ All required fields present and status is healthy')
+except Exception as e:
+    print(f'❌ Error parsing response: {e}')
+    sys.exit(1)"
+    else
+      echo "❌ Health check FAILED with status code: $response"
+      [ -f health_response.json ] && cat health_response.json || echo "No response body"
+      exit 1
+    fi
     
     - name: Test Model Info Endpoint
       run: |
