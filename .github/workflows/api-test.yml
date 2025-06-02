@@ -80,7 +80,7 @@ jobs:
     - name: Run Python test
       run: |
         cd test
-        python test.py
+        python face_auth_test.py
 
     - name: Cleanup
       if: always()
