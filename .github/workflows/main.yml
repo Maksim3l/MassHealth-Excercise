@@ -63,5 +63,5 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
-        cd mosquitto
+        cd extensions/
         docker compose down
