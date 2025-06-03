@@ -93,8 +93,8 @@ jobs:
           echo "Building extensions service..."
           docker compose -f extensions/docker-compose.yml build
           
-          echo "Building backend service..."
-          docker compose -f backend/supabase-project/docker-compose.yml build
+          #echo "Building backend service..."
+          #docker compose -f backend/supabase-project/docker-compose.yml build
           
           echo "Building frontend service..."
           docker compose -f frontend/docker-compose.yml build
@@ -105,7 +105,7 @@ jobs:
           echo "Tagging and pushing services..."
           declare -A SERVICE_PATHS=(
             ["extra_service"]="extensions"
-            ["backend_service"]="backend/supabase-project" 
+            #["backend_service"]="backend/supabase-project/" 
             ["frontend_service"]="frontend"
           )
           
