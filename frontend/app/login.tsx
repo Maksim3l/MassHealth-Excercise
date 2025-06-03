@@ -9,7 +9,7 @@ import DefButton from '../components/button';
 import { supabase } from '../utils/supabase';
 import * as Paho from 'paho-mqtt';
 
-const MQTT_HOST = '192.168.1.14'; // Update actual broker address
+const MQTT_HOST = '192.168.1.137'; // Update actual broker address
 const MQTT_PORT = 9001;
 
 const login = () => {
@@ -299,7 +299,7 @@ const login = () => {
         setMqttClient(client);
       }
       
-      router.replace('/(authenticated)/(tabs)/home');
+      router.replace('/(authenticated)/TwoFactorAuth');
     } catch (error) {
       console.error("Exception during login:", error);
       Alert.alert('Login error', 'An unexpected error occurred');
