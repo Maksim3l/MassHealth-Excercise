@@ -72,7 +72,7 @@ jobs:
           
           echo "✅ All required workflows passed successfully!"
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
