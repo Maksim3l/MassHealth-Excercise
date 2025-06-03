@@ -1,7 +1,7 @@
 name: Deploy
 on:
   workflow_run:
-    workflows: ["MQTT-Test", "Face-Verification-API-Test"]
+    workflows: ["Face-Verification-API-Test"]
     types:
       - completed
 
