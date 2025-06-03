@@ -104,9 +104,9 @@ jobs:
           
           echo "Tagging and pushing services..."
           declare -A SERVICE_PATHS=(
-            ["extra_service"]="extensions"
+            ["extra_service"]="extensions-face-verification-api"
             #["backend_service"]="backend/supabase-project/" 
-            ["frontend_service"]="frontend"
+            ["frontend_service"]="frontend-expo-frontend"
           )
           
           for SERVICE in "${!SERVICE_PATHS[@]}"; do
