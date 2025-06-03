@@ -1,7 +1,7 @@
 name: Deploy
 on:
   workflow_run:
-    workflows: ["Face-Verification-API-Test"]
+    workflows: ["MQTT-Test", "Face-Verification-API-Test"]
     types:
       - completed
 
@@ -9,6 +9,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    permissions:
+      actions: read
+      contents: read
     
     steps:
       - name: Checkout code
@@ -27,6 +31,7 @@ jobs:
           for WF in "${WORKFLOWS[@]}"; do
             echo "Checking latest run of workflow: $WF"
             
+            # Get the latest run for this workflow
             LATEST_RUN=$(gh run list \
               --workflow="$WF" \
               --json conclusion,status,headSha \
@@ -80,10 +85,11 @@ jobs:
           
       - name: Build and push all services
         run: |
-          set -e 
+          set -e  # Exit on any error
           
           echo "Building services..."
           
+          # Build each service and capture the actual image names
           echo "Building extensions service..."
           docker compose -f extensions/docker-compose.yml build
           
@@ -105,6 +111,7 @@ jobs:
           
           for SERVICE in "${!SERVICE_PATHS[@]}"; do
             IMAGE_NAME="thecoffeeaddict/masshealth:${SERVICE}"
+            # Try different possible source image naming patterns
             POSSIBLE_SOURCES=(
               "${SERVICE_PATHS[$SERVICE]}_${SERVICE}"
               "${SERVICE_PATHS[$SERVICE]}-${SERVICE}"
