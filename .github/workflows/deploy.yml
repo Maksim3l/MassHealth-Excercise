@@ -111,13 +111,9 @@ jobs:
           
           for SERVICE in "${!SERVICE_PATHS[@]}"; do
             IMAGE_NAME="thecoffeeaddict/masshealth:${SERVICE}"
-            # Try different possible source image naming patterns
             POSSIBLE_SOURCES=(
-              "${SERVICE_PATHS[$SERVICE]}_${SERVICE}"
-              "${SERVICE_PATHS[$SERVICE]}-${SERVICE}"
               "${SERVICE}"
-              "${SERVICE_PATHS[$SERVICE]}_app"
-              "${SERVICE_PATHS[$SERVICE]}-app"
+              "${SERVICE_PATHS[$SERVICE]}"
             )
             
             SOURCE_IMAGE=""
