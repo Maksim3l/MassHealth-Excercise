@@ -2,6 +2,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect } from 'react';
 import { Alert, Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../utils/supabase';
+import { router } from 'expo-router';
 
 interface PhotoData {
     uri: string;
@@ -52,8 +53,6 @@ export default function TwoFactorAuth() {
       if (response.ok) {
         const healthData = await response.json();
         console.log('Server health:', healthData);
-        setServerStatus('Healthy');
-        Alert.alert('Server Status', 'Server is running and healthy!');
       } else {
         console.log('Server responded with error:', response.status);
         setServerStatus(`Error: ${response.status}`);
@@ -151,7 +150,7 @@ export default function TwoFactorAuth() {
               'Verification Successful', 
               'Your identity has been verified successfully!',
               [{ text: 'OK', onPress: () => {
-                  console.log('Verification successful:', result);
+                router.replace('/(authenticated)/(tabs)/home');
               }}]
             );
         } else {
@@ -165,9 +164,10 @@ export default function TwoFactorAuth() {
 
     } catch (error) {
         console.error('Verification error:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         Alert.alert(
           'Connection Error', 
-          `Failed to connect to server:\n${error.message || error}\n\nPlease check your network connection and server status.`
+          `Failed to connect to server:\n${errorMessage}\n\nPlease check your network connection and server status.`
         );
     }
   };
@@ -192,10 +192,7 @@ export default function TwoFactorAuth() {
   return (
     <View style={styles.container}>
       <View style={styles.statusContainer}>
-        <Text style={styles.statusText}>Server: {serverStatus}</Text>
-        <TouchableOpacity style={styles.healthButton} onPress={checkServerHealth}>
-          <Text style={styles.healthButtonText}>Check Health</Text>
-        </TouchableOpacity>
+
       </View>
 
       <CameraView 
