@@ -455,10 +455,7 @@ const Profile = () => {
         const result = await enable2FA();
         
         if (result.success) {
-          setTwofactorAuth(true);
-          setCustomAlertTitle('Success');
-          setCustomAlertMessage('Two-factor authentication has been enabled');
-          setCustomAlertVisible(true);
+          // nothing right now
         } else {
           setCustomAlertTitle('Error');
           setCustomAlertMessage('Failed to enable two-factor authentication');
