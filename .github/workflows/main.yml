@@ -1,0 +1,67 @@
+name: MQTT-Test
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  mqtt-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check Docker Compose availability
+      run: |
+        echo "Checking Docker Compose..."
+        docker --version
+        docker compose version
+        
+    - name: Verify mosquitto config exists
+      run: |
+        ls -la extensions/mosquitto/
+        echo 'Using existing configuration'
+        
+    - name: Start mosquitto with docker compose
+      run: |
+        cd extensions
+        # Use the newer docker compose command (space, not hyphen)
+        docker compose --file docker-compose.test.yml up -d mosquitto --wait
+        
+    - name: Wait for Mosquitto to be ready
+      run: |
+        echo 'Waiting for Mosquitto to start'
+        timeout 30s bash -c 'until docker exec mosquitto mosquitto_pub -t test -m "test" 2>/dev/null; do sleep 1; done'
+        echo 'Mosquitto is ready'
+        
+    - name: Test MQTT pub/sub functionality
+      run: |
+        echo 'Testing MQTT pub/sub...'
+        # Subscribe in background
+        timeout 5s docker exec mosquitto mosquitto_sub -t "ci/test" > received.txt &
+        sleep 2
+        # Publish message
+        docker exec mosquitto mosquitto_pub -t "ci/test" -m "Hello from CI/CD!"
+        sleep 2
+        # Check if received
+        if grep -q "Hello from CI/CD!" received.txt; then
+          echo "MQTT pub/sub test PASSED!"
+        else
+          echo "MQTT pub/sub test FAILED!"
+          cat received.txt
+          exit 1
+        fi
+        
+    - name: Show mosquitto logs
+      if: always()
+      run: |
+        echo 'Mosquitto container logs:'
+        docker logs mosquitto
+        echo '--- Log file contents ---'
+        docker exec mosquitto cat /mosquitto/log/mosquitto.log || echo "Log file not found"
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        cd extensions/
+        docker compose down

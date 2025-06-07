@@ -584,112 +584,96 @@ const Routines: React.FC = () => {
     }
   }, [otherUserLocations, isLoading]);
   
-  const navigateToMap = () => {
-    router.push('../map');
-  }
 
   const navigateToPreview = (routineName: string) => {
     router.push(`../routinepreview?routineName=${routineName}`);
   };
   
-  const handleWebViewLoad = () => {
-    if (webViewRef.current) {
-      // Set center position to user's location
-      webViewRef.current.injectJavaScript(`
-        try {
-          window.postMessage(JSON.stringify({
-            type: 'mapCenterPosition',
-            payload: {
-              lat: ${userLocation.latitude},
-              lng: ${userLocation.longitude},
-              zoom: 13 // Use higher zoom for better view of user's location
+const handleWebViewLoad = () => {
+  if (webViewRef.current) {
+    // Set center position to user's location
+    webViewRef.current.injectJavaScript(`
+      try {
+        window.postMessage(JSON.stringify({
+          type: 'mapCenterPosition',
+          payload: {
+            lat: ${userLocation.latitude},
+            lng: ${userLocation.longitude},
+            zoom: 13
+          }
+        }));
+        true;
+      } catch(e) {
+        console.error('Error in mapCenterPosition:', e);
+        true;
+      }
+    `);
+    
+    // Add tile layer
+    webViewRef.current.injectJavaScript(`
+      try {
+        window.postMessage(JSON.stringify({
+          type: 'mapLayers',
+          payload: [
+            {
+              url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
             }
-          }));
-          true;
-        } catch(e) {
-          console.error('Error in mapCenterPosition:', e);
-          true;
+          ]
+        }));
+        true;
+      } catch(e) {
+        console.error('Error in mapLayers:', e);
+        true;
+      }
+    `);
+    
+    // Add markers for fixed locations
+    webViewRef.current.injectJavaScript(`
+      try {
+        window.postMessage(JSON.stringify({
+          type: 'markers',
+          payload: [
+            { lat: 46.0569, lng: 14.5058, userId: 'location-1' },
+            { lat: 46.2382, lng: 14.3555, userId: 'location-2' },
+            { lat: 45.5475, lng: 13.7304, userId: 'location-3' }
+          ]
+        }));
+        true;
+      } catch(e) {
+        console.error('Error in markers:', e);
+        true;
+      }
+    `);
+    
+
+    // Add other user markers if any exist
+    if (otherUserLocations.length > 0) {
+      const markersData = otherUserLocations.map(user => ({
+        lat: user.latitude,
+        lng: user.longitude,
+        userId: user.userId,
+        icon: {
+          className: 'other-user-marker',
+          iconSize: [10, 10],
+          iconAnchor: [5, 5]
         }
-      `);
-      
-      // Add tile layer
-      webViewRef.current.injectJavaScript(`
-        try {
-          window.postMessage(JSON.stringify({
-            type: 'mapLayers',
-            payload: [
-              {
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              }
-            ]
-          }));
-          true;
-        } catch(e) {
-          console.error('Error in mapLayers:', e);
-          true;
-        }
-      `);
-      
-      // Add markers for fixed locations
+      }));
+  
       webViewRef.current.injectJavaScript(`
         try {
           window.postMessage(JSON.stringify({
             type: 'markers',
-            payload: [
-              { lat: 46.0569, lng: 14.5058, userId: 'location-1' },
-              { lat: 46.2382, lng: 14.3555, userId: 'location-2' },
-              { lat: 45.5475, lng: 13.7304, userId: 'location-3' }
-            ]
+            payload: ${JSON.stringify(markersData)}
           }));
           true;
         } catch(e) {
-          console.error('Error in markers:', e);
+          console.error('Error in updating user markers:', e);
           true;
         }
       `);
-      
-      // Make map non-interactive
-      webViewRef.current.injectJavaScript(`
-        try {
-          window.postMessage(JSON.stringify({
-            type: 'customScript',
-            payload: "setTimeout(() => { const zoomControl = document.querySelector('.leaflet-control-zoom'); if (zoomControl) zoomControl.style.display = 'none'; map.dragging.disable(); map.touchZoom.disable(); map.doubleClickZoom.disable(); map.scrollWheelZoom.disable(); }, 100);"
-          }));
-          true;
-        } catch(e) {
-          console.error('Error in customScript:', e);
-          true;
-        }
-      `);
-
-      // Add other user markers if any exist
-      if (otherUserLocations.length > 0) {
-        const markersData = otherUserLocations.map(user => ({
-          lat: user.latitude,
-          lng: user.longitude,
-          userId: user.userId,
-          icon: {
-            className: 'other-user-marker',
-            iconSize: [10, 10],
-            iconAnchor: [5, 5]
-          }
-        }));
-    
-        webViewRef.current.injectJavaScript(`
-          try {
-            window.postMessage(JSON.stringify({
-              type: 'markers',
-              payload: ${JSON.stringify(markersData)}
-            }));
-            true;
-          } catch(e) {
-            console.error('Error in updating user markers:', e);
-            true;
-          }
-        `);
-      }
     }
-  };
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -699,9 +683,8 @@ const Routines: React.FC = () => {
           <Text style={styles.sectionTitleText}>Routines</Text>
         </View>
         
-        <TouchableOpacity 
+        <View 
           style={styles.mapPreviewContainer}
-          onPress={navigateToMap}
         >
           {/* map view */}
           <View style={styles.mapWrapper}>
@@ -713,8 +696,10 @@ const Routines: React.FC = () => {
               javaScriptEnabled={true}
               domStorageEnabled={true}
               style={styles.mapWrapper}
-              scrollEnabled={false}
+              scrollEnabled={true}
               originWhitelist={['*']}
+              allowsInlineMediaPlayback={true}
+              mediaPlaybackRequiresUserAction={false}
             />
           </View>
           
@@ -724,7 +709,7 @@ const Routines: React.FC = () => {
               {otherUserLocations.length > 0 ? ` • ${otherUserLocations.length} other users online` : ''}
             </Text>
           </View>
-        </TouchableOpacity>
+        </View>
         
         <SectionTitle textOne='Your' textTwo='Routines' />
         <View style={styles.buttonGroup}>
@@ -794,7 +779,7 @@ const styles = StyleSheet.create({
     margin: 20
   },
   mapPreviewContainer: {
-    height: 120,
+    height: 170,
     margin: 15,
     borderRadius: 8,
     overflow: 'hidden',

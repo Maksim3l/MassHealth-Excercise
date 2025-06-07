@@ -1,0 +1,143 @@
+name: Deploy
+on:
+  workflow_run:
+    workflows: ["MQTT-Test", "Face-Verification-API-Test"]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    permissions:
+      actions: read
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+          
+      - name: Check both workflows passed
+        id: check-status
+        run: |
+          set -e
+          echo "Triggered by workflow: ${{ github.event.workflow_run.name }}"
+          echo "Trigger status: ${{ github.event.workflow_run.conclusion }}"
+          
+          WORKFLOWS=("MQTT-Test" "Face-Verification-API-Test")
+          FAILED_WORKFLOWS=()
+          
+          for WF in "${WORKFLOWS[@]}"; do
+            echo "Checking latest run of workflow: $WF"
+            
+            # Get the latest run for this workflow
+            LATEST_RUN=$(gh run list \
+              --workflow="$WF" \
+              --json conclusion,status,headSha \
+              --limit 1 \
+              --jq '.[0]')
+            
+            if [[ "$LATEST_RUN" == "null" || -z "$LATEST_RUN" ]]; then
+              echo "❌ No runs found for workflow: $WF"
+              FAILED_WORKFLOWS+=("$WF")
+              continue
+            fi
+            
+            STATUS=$(echo "$LATEST_RUN" | jq -r '.status // "unknown"')
+            CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion // "unknown"')
+            HEAD_SHA=$(echo "$LATEST_RUN" | jq -r '.headSha // "unknown"')
+            
+            echo "Workflow: $WF"
+            echo "  Status: $STATUS"
+            echo "  Conclusion: $CONCLUSION"
+            echo "  Commit: $HEAD_SHA"
+            
+            if [[ "$STATUS" != "completed" ]]; then
+              echo "❌ $WF is not completed (status: $STATUS)"
+              FAILED_WORKFLOWS+=("$WF")
+            elif [[ "$CONCLUSION" != "success" ]]; then
+              echo "❌ $WF did not succeed (conclusion: $CONCLUSION)"
+              FAILED_WORKFLOWS+=("$WF")
+            else
+              echo "✅ $WF passed successfully"
+            fi
+          done
+          
+          if [[ ${#FAILED_WORKFLOWS[@]} -gt 0 ]]; then
+            echo "❌ The following workflows did not pass: ${FAILED_WORKFLOWS[*]}"
+            echo "Deployment cancelled."
+            exit 1
+          fi
+          
+          echo "✅ All required workflows passed successfully!"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          
+      - name: Build and push all services
+        run: |
+          set -e  # Exit on any error
+          
+          echo "Building services..."
+          
+          # Build each service and capture the actual image names
+          echo "Building extensions service..."
+          docker compose -f extensions/docker-compose.yml build
+          
+          #echo "Building backend service..."
+          #docker compose -f backend/supabase-project/docker-compose.yml build
+          
+          echo "Building frontend service..."
+          docker compose -f frontend/docker-compose.yml build
+          
+          echo "Listing built images..."
+          docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}"
+          
+          echo "Tagging and pushing services..."
+          declare -A SERVICE_PATHS=(
+            ["extra_service"]="extensions-face-verification-api"
+            #["backend_service"]="backend/supabase-project/" 
+            ["frontend_service"]="frontend-expo-frontend"
+          )
+          
+          for SERVICE in "${!SERVICE_PATHS[@]}"; do
+            IMAGE_NAME="thecoffeeaddict/masshealth:${SERVICE}"
+            POSSIBLE_SOURCES=(
+              "${SERVICE}"
+              "${SERVICE_PATHS[$SERVICE]}"
+            )
+            
+            SOURCE_IMAGE=""
+            for POSSIBLE in "${POSSIBLE_SOURCES[@]}"; do
+              if docker image inspect "$POSSIBLE" >/dev/null 2>&1; then
+                SOURCE_IMAGE="$POSSIBLE"
+                break
+              fi
+            done
+            
+            if [[ -z "$SOURCE_IMAGE" ]]; then
+              echo "❌ Could not find source image for $SERVICE"
+              echo "Available images:"
+              docker images
+              exit 1
+            fi
+            
+            echo "Tagging $SOURCE_IMAGE -> $IMAGE_NAME"
+            docker tag "$SOURCE_IMAGE" "$IMAGE_NAME"
+            
+            echo "Pushing $IMAGE_NAME"
+            docker push "$IMAGE_NAME"
+            
+            echo "✅ Successfully pushed $IMAGE_NAME"
+          done
+          
+          echo "🚀 All services deployed successfully!"

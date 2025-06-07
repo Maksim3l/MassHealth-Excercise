@@ -1,0 +1,48 @@
+services:
+  face-verification-api:
+    build:
+      context: ./face_auth
+      dockerfile: Dockerfile
+    container_name: face-verification-api
+    ports:
+      - "9002:9002"
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - ./config:/app/config:rw
+    depends_on:
+      - mosquitto
+    networks:
+      - app-network
+      - supabase_default
+
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto:latest
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
+  supabase_default:
+    external: true 

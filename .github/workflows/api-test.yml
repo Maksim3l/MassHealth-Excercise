@@ -1,0 +1,102 @@
+name: Face-Verification-API-Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  api-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests pillow
+        # Install bc for floating point calculations
+        sudo apt-get update
+        sudo apt-get install -y bc
+    
+    - name: Check if API service is configured
+      run: |
+        if [ -f "./extensions/docker-compose.test.yml" ] || [ -f "./extensions/compose.yml" ]; then
+          echo "Docker compose file found in extensions directory"
+          ls -la ./extensions/*compose*.yml 2>/dev/null || echo "No compose files found"
+        else
+          echo "No docker compose file found in extensions - will test against localhost"
+        fi
+    
+    - name: Start Face Verification API (if docker-compose exists)
+      run: |
+        if [ -f "./extensions/docker-compose.test.yml" ]; then
+          echo "Starting face-verification-api service with docker-compose..."
+          cd ./extensions
+          docker compose --file docker-compose.test.yml up -d face-verification-api --wait
+        elif [ -f "./extensions/compose.yml" ]; then
+          echo "Starting face-verification-api service with compose.yml..."
+          cd ./extensions
+          docker compose --file compose.yml up -d face-verification-api --wait
+        else
+          echo "No compose file found - assuming API runs separately"
+        fi
+    
+    - name: Wait for API to be ready
+      run: |
+        echo 'Waiting for Face Verification API to start...'
+        API_URL="http://localhost:9002"
+        
+        # Wait up to 60 seconds for API to respond
+        for i in {1..30}; do
+          if curl -s --max-time 5 "$API_URL/health" >/dev/null 2>&1; then
+            echo 'API is ready!'
+            exit 0
+          fi
+          echo "Waiting for API... attempt $i/30"
+          sleep 2
+        done
+        
+        echo 'API failed to start within 60 seconds'
+        if command -v docker >/dev/null 2>&1; then
+          echo 'Docker container logs:'
+          docker ps -a
+          for container in $(docker ps -aq 2>/dev/null); do
+            echo "--- Logs for container $container ---"
+            docker logs "$container" 2>/dev/null || echo 'No logs available'
+          done
+        fi
+        exit 1
+    
+    - name: Run Python test
+      run: |
+        cd test
+        python face_auth_test.py
+
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "=== Cleanup ==="
+        if [ -f "./extensions/docker-compose.yml" ] || [ -f "./extensions/compose.yml" ]; then
+          echo "Stopping services..."
+          cd ./extensions
+          docker compose down 2>/dev/null || true
+        fi
+        
+        # Clean up test files
+        rm -f health_response.json model_info_response.json
+        rm -f compare_response.json batch_response.json verify_response.json
+        rm -f compare_payload.json batch_payload.json verify_payload.json
+        rm -f invalid_payload.json invalid_response.json
+        rm -f test_images.json
+        
+        echo "✅ Cleanup completed"
