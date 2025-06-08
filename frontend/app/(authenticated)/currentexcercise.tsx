@@ -39,23 +39,8 @@ const CurrentExerciseList = ({ routineName }: CurrentExerciseListProps) => {
       fetchExercisesForRoutine(routineName);
     } else {
       // Set default data 
-      setListData(Array(3)
-        .fill('')
-        .map((_, i) => ({
-          key: `${i}`,
-          excercise_id: 0,
-          exerciseName: 'Leg Extension',
-          reps: '3x10',
-          playWorkout: false,
-          doneWorkout: false,
-          is_set_type: true,
-          num_of_sets: 3,
-          num_of_reps: 10,
-          time_held: null,
-          remaining_sets: 3,
-          total_sets: 3
-        }))
-      );
+      setListData([]);
+      
     }
   }, [routineName]);
 

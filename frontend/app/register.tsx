@@ -6,6 +6,7 @@ import Input from '../components/input';
 import DefButton from '../components/button';
 import { router } from 'expo-router';
 import { supabase } from '../utils/supabase'
+import { ScrollView } from 'react-native';
 
 const Register = () => {
 
@@ -63,6 +64,7 @@ const Register = () => {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
+        <ScrollView>
         <View style={styles.container2}>
             <Text style={styles.title}>
                 Register
@@ -116,6 +118,7 @@ const Register = () => {
             </TouchableOpacity>
           </View>
             </View>
+            </ScrollView>
       </SafeAreaView>
       </View>
 
@@ -131,20 +134,22 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 40,
+        fontWeight: '600'
+
     },
     h2: {
-        fontSize: 25,
+        fontSize: 24,
         opacity: 0.6,
     },
     container2: {
-        marginTop: '20%',
+        marginTop: '15%',
         marginBottom: '20%',
         paddingHorizontal: 20
     },
     registerContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
-      marginTop: 20
+      marginTop: 10
     },
     registerText: {
       fontSize: 14,

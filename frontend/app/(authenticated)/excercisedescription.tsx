@@ -7,6 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { ScrollView } from 'react-native';
 import WebView from 'react-native-webview';
 import { useVideoPlayer, VideoView } from 'expo-video'
+import { Ionicons } from '@expo/vector-icons'; // Add this import
 
 const { width } = Dimensions.get('window');
 const videoWidth = Math.min(320, width - 40); 
@@ -184,17 +185,26 @@ const ExcercisePreview = () => {
     }
     
     // Add a cache-busting parameter to force refresh
-    const embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=0&showinfo=0&controls=1&t=${refresh}`;
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&autoplay=0&showinfo=0&controls=1&t=${refresh}`;
     
     return (
       <WebView
         style={{ width: videoWidth, height: videoHeight, borderRadius: 8 }}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        source={{ uri: embedUrl }}
+        source={{ 
+          uri: embedUrl,
+          headers: {
+            'Referer': 'https://masshealth-exercise.app'
+          } 
+        }}
         allowsFullscreenVideo={true}
         onLoadStart={() => setVideoLoading(true)}
         onLoadEnd={() => setVideoLoading(false)}
+        originWhitelist={['*']}
+        startInLoadingState={true}
+        mediaPlaybackRequiresUserAction={false}
+        scalesPageToFit={true}
       />
     );
   };
@@ -212,17 +222,26 @@ const ExcercisePreview = () => {
     }
     
     // Add a cache-busting parameter to force refresh
-    const embedUrl = `https://player.vimeo.com/video/${videoId}?autoplay=0&title=0&byline=0&portrait=0&t=${refresh}`;
+    const embedUrl = `https://player.vimeo.com/video/${videoId}?autoplay=0&title=0&byline=0&portrait=0&t=${refresh}&app_id=masshealth`;
     
     return (
       <WebView
         style={{ width: videoWidth, height: videoHeight, borderRadius: 8 }}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        source={{ uri: embedUrl }}
+        source={{ 
+          uri: embedUrl,
+          headers: {
+            'Referer': 'https://masshealth-exercise.app'
+          } 
+        }}
         allowsFullscreenVideo={true}
         onLoadStart={() => setVideoLoading(true)}
         onLoadEnd={() => setVideoLoading(false)}
+        originWhitelist={['*']}
+        startInLoadingState={true}
+        mediaPlaybackRequiresUserAction={false}
+        scalesPageToFit={true}
       />
     );
   };
@@ -271,6 +290,65 @@ const ExcercisePreview = () => {
     );
   };
 
+  // Render instructions
+  const renderInstructions = () => {
+    if (!description) {
+      return (
+        <View style={styles.emptyInstructions}>
+          <Ionicons name="information-circle-outline" size={32} color="#6E49EB" />
+          <Text style={styles.emptyInstructionsText}>No instructions available for this exercise.</Text>
+        </View>
+      );
+    }
+
+    // Check if description has numbered steps (e.g., "1. Do this 2. Do that")
+    const hasNumberedSteps = /\d+\.\s/.test(description as string);
+    
+    if (hasNumberedSteps) {
+      // Split by numbered steps
+      const steps = (description as string).split(/(\d+\.\s)/).filter(Boolean);
+      const formattedSteps = [];
+      
+      for (let i = 0; i < steps.length; i += 2) {
+        if (i + 1 < steps.length) {
+          formattedSteps.push({
+            number: steps[i].trim(),
+            text: steps[i + 1].trim()
+          });
+        }
+      }
+      
+      return (
+        <View style={styles.instructionsContainer}>
+          <View style={styles.instructionsHeader}>
+            <Ionicons name="list" size={24} color="#6E49EB" />
+            <Text style={styles.instructionsTitle}>Instructions</Text>
+          </View>
+          
+          {formattedSteps.map((step, index) => (
+            <View key={index} style={styles.stepContainer}>
+              <View style={styles.stepNumberContainer}>
+                <Text style={styles.stepNumber}>{index + 1}</Text>
+              </View>
+              <Text style={styles.stepText}>{step.text}</Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
+    
+    // Regular paragraph format
+    return (
+      <View style={styles.instructionsContainer}>
+        <View style={styles.instructionsHeader}>
+          <Ionicons name="information-circle" size={24} color="#6E49EB" />
+          <Text style={styles.instructionsTitle}>Instructions</Text>
+        </View>
+        <Text style={styles.instructionsText}>{description as string}</Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.title}>
@@ -295,8 +373,7 @@ const ExcercisePreview = () => {
         )}
         
         <View style={styles.descriptionContainer}>
-          <Text style={styles.description}>Instructions</Text>
-          <Text style={styles.describe}>{description as string || "No instructions available for this exercise."}</Text>
+          {renderInstructions()}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -396,16 +473,80 @@ const styles = StyleSheet.create({
   },
   descriptionContainer: {
     marginHorizontal: 20,
+    marginTop: 15,
+  },
+  instructionsContainer: {
+    backgroundColor: '#f9f6ff',
+    borderRadius: 12,
     padding: 20,
+    marginBottom: 20,
+    shadowColor: "#6E49EB20",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e8e0ff',
   },
-  description: {
-    fontSize: 24,
-    fontWeight: '600'
+  instructionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e8e0ff',
   },
-  describe: {
+  instructionsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#6E49EB',
+    marginLeft: 10,
+  },
+  instructionsText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+  },
+  stepContainer: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    alignItems: 'flex-start',
+  },
+  stepNumberContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#6E49EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  stepNumber: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  stepText: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+  },
+  emptyInstructions: {
+    backgroundColor: '#f9f6ff',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    height: 120,
+  },
+  emptyInstructionsText: {
     marginTop: 10,
     fontSize: 16,
-    textAlign: 'justify'
+    color: '#666',
+    textAlign: 'center',
   },
   loadingContainer: {
     padding: 40,
