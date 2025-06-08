@@ -10,7 +10,7 @@ import { supabase } from '../utils/supabase';
 import * as Paho from 'paho-mqtt';
 
 
-const MQTT_HOST = '192.168.1.124'; // Update actual broker address
+const MQTT_HOST = '192.168.1.137'; // Update actual broker address
 const MQTT_PORT = 9001;
 
 const login = () => {
@@ -24,11 +24,7 @@ const login = () => {
     checkExistingSession();
   }, [])
 
-  useEffect(() => {
-    return () => {
-      disconnectMQTT();
-    }
-  }, [mqttClient])
+
 
   // Create a reusable function to handle username fetching and setting
   const fetchAndSetUsername = async (userId: string): Promise<string> => {
