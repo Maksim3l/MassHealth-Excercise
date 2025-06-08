@@ -10,7 +10,7 @@ import { supabase } from '../utils/supabase';
 import * as Paho from 'paho-mqtt';
 
 
-const MQTT_HOST = '192.168.1.124'; // Update actual broker address
+const MQTT_HOST = '192.168.1.137'; // Update actual broker address
 const MQTT_PORT = 9001;
 
 const login = () => {
@@ -24,11 +24,7 @@ const login = () => {
     checkExistingSession();
   }, [])
 
-  useEffect(() => {
-    return () => {
-      disconnectMQTT();
-    }
-  }, [mqttClient])
+
 
   // Create a reusable function to handle username fetching and setting
   const fetchAndSetUsername = async (userId: string): Promise<string> => {
@@ -218,7 +214,7 @@ const login = () => {
             }
           }
           
-          router.replace('/(authenticated)/(tabs)/home')
+          await check2FAAndRedirect(data.session.user.id);
           return // Keep loading true while redirecting
         } else {
           console.log("Found expired session, will need to log in again")
@@ -252,6 +248,40 @@ const login = () => {
       console.log("Session cleared successfully")
     } catch (err) {
       console.error("Error preparing for login:", err)
+    }
+  }
+
+  async function check2FAAndRedirect(userId: any){
+    try{
+      console.log("Checking 2FA status for user:", username);
+
+      const { data, error} = await supabase
+        .from('User_Metadata')
+        .select('2FA')
+        .eq('user_id', userId)
+        .single()
+
+      if(error){
+        console.error("Error fetching 2FA status", error);
+        router.replace('/(authenticated)/(tabs)/home');
+        return; 
+      }
+
+      console.log("User 2FA status", data);
+
+      if(data && data['2FA'] == true){
+        console.log('2FA is enabled redirecting to verification');
+        router.replace('/(authenticated)/TwoFactorAuth');
+      } else {
+        console.log('2FA is not enabled, redirecting to home');
+        router.replace('/(authenticated)/(tabs)/home');
+      }
+
+    } catch(error) {
+      console.error("Exception checking 2FA status:", error);
+      router.replace('/(authenticated)/(tabs)/home');
+
+
     }
   }
 
@@ -315,7 +345,7 @@ const login = () => {
         setMqttClient(client);
       }
       
-      router.replace('/(authenticated)/(tabs)/home');
+      await check2FAAndRedirect(data.user.id)
     } catch (error) {
       console.error("Exception during login:", error);
       Alert.alert('Login error', 'An unexpected error occurred');
@@ -397,7 +427,7 @@ const login = () => {
       }
       
       console.log("Login successful after token reset!");
-      router.replace('/(authenticated)/(tabs)/home');
+      await check2FAAndRedirect(data.user.id)
       
     } catch (err) {
       console.error("Error during token reset:", err);

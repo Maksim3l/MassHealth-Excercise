@@ -19,11 +19,6 @@ services:
       start_period: 60s
     volumes:
       - ./config:/app/config:rw
-    depends_on:
-      - mosquitto
-    networks:
-      - app-network
-      - supabase_default
 
   mosquitto:
     container_name: mosquitto
@@ -38,11 +33,3 @@ services:
       - ./mosquitto/log:/mosquitto/log
     security_opt:
       - no-new-privileges:true
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    external: true
-  supabase_default:
-    external: true 

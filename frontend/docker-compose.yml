@@ -20,15 +20,17 @@ services:
       - /app/.expo
     stdin_open: true
     tty: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - frontend-network
       - supabase_default
-      - extensions_app-network
+      - app-network
 
 networks:
   frontend-network:
-    driver: bridge
+    external: true
   supabase_default:
     external: true
-  extensions_app-network:
+  app-network:
     external: true

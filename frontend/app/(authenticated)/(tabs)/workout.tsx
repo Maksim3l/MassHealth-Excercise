@@ -1,4 +1,4 @@
-import { View, Text, SafeAreaView, StyleSheet } from 'react-native';
+import { View, Text, SafeAreaView, StyleSheet, ScrollView } from 'react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import WorkoutIcon from '../../../assets/tsxicons/workoutnavbaricon';
@@ -99,29 +99,24 @@ const fetchRoutineDetails = useCallback(async (routineName: string) => {
 
       <SectionTitle textOne="Your" textTwo="Workouts" />
       <View style={styles.buttonGroup}>
-        {loadingRoutines ? (
-          <Text style={styles.loadingText}>Loading workouts...</Text>
-        ) : userRoutines.length > 0 ? (
-          <LegendList
-            data={userRoutines}
-            horizontal={true}
-            recycleItems
-            alignItemsAtEnd
-            maintainScrollAtEnd
-            columnWrapperStyle={{ gap: 8 }}
-            maintainScrollAtEndThreshold={0.1}
-            renderItem={({ item }) => (
+        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
+          {loadingRoutines ? (
+            <Text style={styles.loadingText}>Loading workouts...</Text>
+          ) : userRoutines.length > 0 ? (
+            userRoutines.map((routine) => (
               <Routinebutton
-                routineName={item.name}
+                key={routine.id}
+                routineName={routine.name}
                 playIcon={true}
-                onPress={() => selectRoutine(item.name)}
+                onPress={() => selectRoutine(routine.name)}
               />
-            )}
-          />
-        ) : (
-          <Text style={styles.emptyText}>No workouts found</Text>
-        )}
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No workouts found</Text>
+          )}
+        </ScrollView>
       </View>
+
 
       {selectedRoutine ? (
         <>

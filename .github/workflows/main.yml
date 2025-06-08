@@ -19,14 +19,14 @@ jobs:
         
     - name: Verify mosquitto config exists
       run: |
-        ls -la mosquitto/
+        ls -la extensions/mosquitto/
         echo 'Using existing configuration'
         
     - name: Start mosquitto with docker compose
       run: |
-        cd mosquitto
+        cd extensions
         # Use the newer docker compose command (space, not hyphen)
-        docker compose up -d
+        docker compose --file docker-compose.test.yml up -d mosquitto --wait
         
     - name: Wait for Mosquitto to be ready
       run: |
@@ -63,5 +63,5 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
-        cd mosquitto
+        cd extensions/
         docker compose down

@@ -8,8 +8,8 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 
 //NUJNOO!! glede na OS se importa ustrezni hook
 //import useHealthDataios from '../../../hooks/useHealthDataios'
-//import useHealthData from '../../../hooks/useHealthData'
-
+import useHealthData from '../../../hooks/useHealthData'
+//
 //EXPO GO USERS!! zakomentiraj hooks in rocno nastavi steps, flights, distance
 
 const STEP_GOAL = 10000
@@ -25,22 +25,22 @@ const Activity = () => {
   };
 
   // NUJNO!! GLEDE NA OS KLICI PRAVI HEALTH DATA
-      //const androidHealthData = useHealthData(date);
-      //const iosHealthData = useHealthDataios(date)
+  const androidHealthData = useHealthData(date);
+  //const iosHealthData = useHealthDataios(date)
   // Uncomment this when you have the iOS hook ready
 
-  let steps = 18074, flights = 8.4, distance = 1042;
+  let steps = 0, flights = 0, distance = 0;
   
   // NUJNO!! GLEDE NA OS KLICI PRAVI HEALTH DATA
   if (Platform.OS === 'ios') {
     //When you have iOS hook ready, use it here
-      //steps = iosHealthData?.steps || 0;
-      //flights = iosHealthData?.flights || 0;
-      //distance = iosHealthData?.distance || 0;
+    //steps = iosHealthData.steps;
+    //flights = iosHealthData.flights;
+    //distance = iosHealthData.distance;
   } else if (Platform.OS === 'android') {
-      //steps = androidHealthData?.steps || 0; [commented for Expo]
-      //flights = androidHealthData?.flights || 0; [commented for Expo]
-      //distance = androidHealthData?.distance || 0; [commented for Expo]
+    steps = androidHealthData.steps;
+    flights = androidHealthData.flights;
+    distance = androidHealthData.distance;
   }
 
   return (

@@ -19,6 +19,12 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow app to access to your camera"
+        }
+      ],
       "expo-video",
       "react-native-health",
       "react-native-health-connect",
@@ -68,8 +74,6 @@
         "android.permission.health.READ_FLOORS_CLIMBED",
         "android.permission.health.WRITE_FLOORS_CLIMBED",
         "android.permission.health.READ_HEART_RATE"
-
-
 
       ]
     },
